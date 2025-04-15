@@ -1,24 +1,28 @@
 {
-  "name": "untitled",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "start": "nodemon --watch '*.ts' --exec 'ts-node' src/app.ts"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@types/express": "^5.0.1",
-    "@types/node": "^22.14.1",
-    "nodemon": "^3.1.9",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
-  },
-  "dependencies": {
-    "express": "^5.1.0",
-    "reflect-metadata": "^0.2.2"
-  }
+	"name": "untitled",
+	"version": "1.0.0",
+	"main": "./src/app.ts",
+	"scripts": {
+		"dev": "bun run --watch src/app.ts",
+		"biome:check": "biome check --write"
+	},
+	"type": "module",
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"description": "",
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@types/express": "^5.0.1",
+		"@types/node": "^22.14.1",
+		"pkgroll": "^2.12.1",
+		"tsc-alias": "^1.8.15",
+		"tsx": "^4.19.3",
+		"typescript": "^5.8.3",
+		"bun": "latest"
+	},
+	"dependencies": {
+		"express": "^5.1.0",
+		"reflect-metadata": "^0.2.2"
+	}
 }

@@ -1,11 +1,12 @@
+import { registerControllers } from '@/controller/DI';
+import UserController from '@/controller/UserController';
+
 import express from 'express';
 
 const app = express();
 const PORT = 8080;
 
-app.get('/', (req, res) => {
-	res.send('Hello World!');
-});
+registerControllers(app, [UserController]);
 
 app.listen(PORT, () => {
 	console.log(`Server is running on http://localhost:${PORT}`);
