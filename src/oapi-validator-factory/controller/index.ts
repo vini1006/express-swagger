@@ -1,25 +1,25 @@
 import express from 'express';
+import type { ZodTypeAny } from 'zod';
 
-import type { ControllerConstructor } from '@/controller/AbstractController';
-
-import type { IAttributes } from '@/dto/controllerDTO/AbstractControllerDTO';
+import type { ControllerConstructor } from '@oapif/controller/Controller';
 
 import {
 	getBasePathMetaData,
 	getControllerResponseMetaData,
 	getControllerRouteParamsMetaData,
 	getControllerRoutesMetaData,
-} from '@/controller/DI/reflect';
+} from '@oapif/reflect-metadata/controller';
 
-export { Controller } from '@/controller/DI/decorators/controller';
-export { Get, Post } from '@/controller/DI/decorators/route';
+export { BasePath } from '@oapif/controller/decorators/basePath';
+export { Get, Post } from '@oapif/controller/decorators/route';
 export {
 	Param,
 	Query,
 	Body,
 	Header,
-} from '@/controller/DI/decorators/param';
-export { Response } from '@/controller/DI/decorators/response';
+} from '@oapif/controller/decorators/param';
+export { Response } from '@oapif/controller/decorators/response';
+export { default as Controller } from '@oapif/controller/Controller';
 
 export const registerControllers = (
 	app: express.Express,
@@ -48,22 +48,35 @@ export const registerControllers = (
 				);
 
 				try {
-					for (const { index, source, key, expectedType } of paramsMeta) {
+					for (const { index, source, key, validator } of paramsMeta) {
 						switch (source) {
 							case 'param':
-								args[index] = castToType(req.params[key!], expectedType);
+								args[index] = validateAndCastToType(
+									`params.${key}`,
+									req.params[key!],
+									validator,
+								);
 								break;
 							case 'query':
-								args[index] = castToType(req.query[key!], expectedType);
+								args[index] = validateAndCastToType(
+									`query.${key}`,
+									req.query[key!],
+									validator,
+								);
 								break;
 							case 'header':
-								args[index] = castToType(
+								args[index] = validateAndCastToType(
+									`headers.${key}`,
 									req.headers[key!.toLowerCase()],
-									castToType,
+									validator,
 								);
 								break;
 							case 'body':
-								args[index] = castToType(req.body, expectedType);
+								args[index] = validateAndCastToType(
+									`body.${key}`,
+									req.body,
+									validator,
+								);
 								break;
 						}
 					}
@@ -93,17 +106,21 @@ export const registerControllers = (
 					statusCode: 200,
 					returnType: undefined,
 				};
-				if (returnType) {
-					if (returnType && result instanceof returnType) {
-						res.status(statusCode).json(result.toData());
-					} else {
-						res
-							.status(statusCode)
-							.json(new returnType(result as IAttributes).toData());
-					}
-				} else {
-					res.status(statusCode).json(result);
+
+				if (!returnType) {
+					throw new Error(
+						'Response without @Response. Please add @Response to handler',
+					);
 				}
+
+				const parsedResult = returnType.safeParse(result);
+				if (!parsedResult.success) {
+					throw new Error(
+						`Response validation failed: ${parsedResult.error.message}`,
+					);
+				}
+
+				res.status(statusCode).json(parsedResult.data);
 			});
 		}
 
@@ -111,33 +128,19 @@ export const registerControllers = (
 	}
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-const castToType = (value: any, type: any) => {
-	if (type === Number) {
-		const val = Number(value);
-		if (Number.isNaN(val)) {
-			throw new Error(`Invalid type: ${value} is not a Number`);
-		}
-
-		return val;
+const validateAndCastToType = (
+	key: string,
+	value: unknown,
+	validator?: ZodTypeAny,
+) => {
+	if (!validator) {
+		return value;
 	}
 
-	if (type === String) {
-		return `${value}`;
+	const result = validator.safeParse(value);
+	if (!result.success) {
+		throw new Error(`Validation Failed for ${key} ${value} is not acceptable`);
 	}
 
-	if (type === Boolean) {
-		try {
-			return JSON.parse(value);
-		} catch (e) {
-			throw new Error(`Invalid type: ${value} is not a boolean`);
-		}
-	}
-	if (type === Object)
-		try {
-			return typeof value === 'object' ? value : JSON.parse(value);
-		} catch (error) {
-			throw new Error(`Invalid type: ${value} is not a object`);
-		}
 	return value;
 };

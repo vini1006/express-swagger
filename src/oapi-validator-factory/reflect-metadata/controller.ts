@@ -1,27 +1,35 @@
 import 'reflect-metadata';
 
-import type AbstractController from '@/controller/AbstractController';
-import type { HttpMethod, ParamSource } from '@/controller/DI/enums';
-import type AbstractControllerDTO from '@/dto/controllerDTO/AbstractControllerDTO';
-import type { IAttributes } from '@/dto/controllerDTO/AbstractControllerDTO';
+import type { ZodType, ZodTypeAny } from 'zod';
 
-const CONTROLLER_META = 'custom:controller' as const;
+import type Controller from '@oapif/controller/Controller';
+
+import type { HttpMethod, ParamSource } from '@oapif/controller/enums';
+import type DataModel from '@oapif/model/DataModel';
+import type ViewRenderer from '@oapif/model/View';
+
+const BASE_PATH_META = 'custom:base_path' as const;
 const ROUTES_META = 'custom:routes' as const;
 const PARAMS_META = 'custom:route_params' as const;
 const RESPONSE_META = 'custom:response' as const;
 
 type RouteBasePath = string;
 
-export type ControllerMethodNames<T = AbstractController> = keyof {
-	[K in keyof T]: T[K] extends (...args: unknown[]) => unknown ? K : never;
+//TODO: Filter with Returning only viewmodel and stuff
+export type ControllerMethodNames<T = Controller> = keyof {
+	[K in keyof T]: T[K] extends (
+		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+		...arg: any[]
+	) => PromiseLike<DataModel | ViewRenderer>
+		? K
+		: never;
 };
 
 type ParameterMeta = {
 	index: number;
 	source: ParamSource;
 	key?: string;
-	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	expectedType?: any;
+	validator?: ZodTypeAny;
 };
 
 type RouteMeta = {
@@ -32,24 +40,22 @@ type RouteMeta = {
 
 type ResponseMeta = {
 	statusCode: number;
-	returnType?: new (attr: IAttributes) => AbstractControllerDTO;
+	returnType: ZodType;
 };
 
 export const defineBasePathMetaData = (
 	basePath: RouteBasePath,
-	target: AbstractController,
+	target: Controller,
 ) => {
-	Reflect.defineMetadata(CONTROLLER_META, basePath, target);
+	Reflect.defineMetadata(BASE_PATH_META, basePath, target);
 };
 
-export const getBasePathMetaData = (
-	controller: AbstractController,
-): RouteBasePath => {
-	return Reflect.getMetadata(CONTROLLER_META, controller.constructor);
+export const getBasePathMetaData = (controller: Controller): RouteBasePath => {
+	return Reflect.getMetadata(BASE_PATH_META, controller.constructor);
 };
 
 export const defineControllerRoutesMetaData = (
-	target: AbstractController,
+	target: Controller,
 	meta: RouteMeta,
 ) => {
 	const existingRoutes =
@@ -60,19 +66,18 @@ export const defineControllerRoutesMetaData = (
 	Reflect.defineMetadata(ROUTES_META, existingRoutes, target.constructor);
 };
 
-export const getControllerRoutesMetaData = <T extends AbstractController>(
-	controller: AbstractController,
+export const getControllerRoutesMetaData = <T extends Controller>(
+	controller: Controller,
 ) => {
 	return (Reflect.getMetadata(ROUTES_META, controller.constructor) ||
 		[]) as RouteMeta[];
 };
 
 export const defineControllerRouteParamMetaData = (
-	target: AbstractController,
+	target: Controller,
 	handlerName: string,
 	parameterMeta: ParameterMeta,
 ) => {
-	console.log(parameterMeta.expectedType);
 	const existingParams: ParameterMeta[] =
 		Reflect.getMetadata(PARAMS_META, target, handlerName as string) || [];
 
@@ -87,7 +92,7 @@ export const defineControllerRouteParamMetaData = (
 };
 
 export const getControllerRouteParamsMetaData = (
-	controller: AbstractController,
+	controller: Controller,
 	handlerName: string,
 ) => {
 	return (Reflect.getMetadata(PARAMS_META, controller, handlerName) ||
@@ -95,7 +100,7 @@ export const getControllerRouteParamsMetaData = (
 };
 
 export const defineControllerResponseMetaData = (
-	target: AbstractController,
+	target: Controller,
 	handlerName: string,
 	meta: ResponseMeta,
 ) => {
@@ -103,7 +108,7 @@ export const defineControllerResponseMetaData = (
 };
 
 export const getControllerResponseMetaData = (
-	target: AbstractController,
+	target: Controller,
 	handlerName: string,
 ) => {
 	return Reflect.getMetadata(
@@ -111,14 +116,4 @@ export const getControllerResponseMetaData = (
 		target,
 		handlerName,
 	) as ResponseMeta;
-};
-
-export const getParamTypes = (
-	target: AbstractController,
-	methodName: string,
-	parameterIndex: number,
-) => {
-	return (Reflect.getMetadata('design:paramtypes', target, methodName) || [])[
-		parameterIndex
-	];
 };

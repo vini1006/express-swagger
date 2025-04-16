@@ -9,7 +9,8 @@
 		"moduleResolution": "node",
 		"baseUrl": ".",
 		"paths": {
-			"@/*": ["src/*"]
+			"@/*": ["src/*"],
+			"@oapif/*": ["src/oapi-validator-factory/*"]
 		},
 		"allowImportingTsExtensions": false,
 		"resolveJsonModule": true,

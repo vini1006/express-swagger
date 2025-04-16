@@ -1,15 +1,15 @@
-import type { ResponseDTOConstructor } from '@/dto/controllerDTO/AbstractControllerDTO';
+import type { ZodTypeAny } from 'zod/lib/types';
 
-import AbstractController from '@/controller/AbstractController';
+import Controller from '@oapif/controller/Controller';
 
-import { defineControllerResponseMetaData } from '@/controller/DI/reflect';
+import { defineControllerResponseMetaData } from '@oapif/reflect-metadata/controller';
 
 export const Response = (
 	statusCode: number,
-	returnType?: ResponseDTOConstructor,
+	returnType: ZodTypeAny,
 ): MethodDecorator => {
 	return (target, methodName, descriptor) => {
-		if (!(target instanceof AbstractController)) {
+		if (!(target instanceof Controller)) {
 			throw new Error(
 				'Response decorator can only be used on classes that extend AbstractController',
 			);

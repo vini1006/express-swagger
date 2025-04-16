@@ -1,28 +1,31 @@
-import AbstractController from '@/controller/AbstractController';
+import UserDTO, { type UserDtoType } from '@/dto/UserDTO';
+
+import { withResponse } from '@/controller/util';
+
 import {
+	BasePath,
+	Body,
 	Controller,
 	Get,
 	Header,
 	Param,
 	Query,
 	Response,
-} from '@/controller/DI';
-import UserDTO from '@/dto/controllerDTO/UserDTO';
+} from '@oapif/controller';
 
-@Controller('/user')
-class UserController extends AbstractController {
+const responseAsUser = withResponse(UserDTO);
+
+@BasePath('/user')
+class UserController extends Controller {
 	@Get('/get/:id')
 	@Response(200, UserDTO)
 	getUser(
-		@Param('id') id: number,
-		@Query('name') name: string,
-		@Header('X-Requested-With') token: string,
+		@Param('id', (z) => z.string().nonempty()) id: string,
+		@Query('name', (z) => z.string().nonempty()) name: string,
+		@Header('X-Requested-With', (z) => z.literal('test')) token: string,
+		@Body('userExt', () => UserDTO) userExt: UserDtoType,
 	) {
-		console.log({
-			id,
-			name,
-		});
-		return { id, name };
+		return responseAsUser({ id, name });
 	}
 }
 
