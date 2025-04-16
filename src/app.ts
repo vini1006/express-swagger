@@ -1,20 +1,24 @@
-import { registerControllers } from '@oapif/controller';
+import express from 'express';
+
+import { registerRouter } from '@oapif/register';
 
 import UserController from '@/controller/UserController';
-
-import express from 'express';
 
 const app = express();
 const PORT = 8080;
 
-app.set('views', '/views');
-app.use(
-	'view engine',
-	// @ts-ignore
-	'ejs',
-);
+app.set('view engine', 'ejs').set('views', '/views');
 
-registerControllers(app, [UserController]);
+registerRouter(app, {
+	controllers: [UserController],
+	invalidParamResponse: (errMessage) => {
+		return {
+			code: -1000,
+			msg: errMessage,
+			data: {},
+		};
+	},
+});
 
 app.listen(PORT, () => {
 	console.log(`Server is running on http://localhost:${PORT}`);

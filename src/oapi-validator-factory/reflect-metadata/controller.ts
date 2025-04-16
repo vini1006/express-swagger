@@ -5,8 +5,7 @@ import type { ZodType, ZodTypeAny } from 'zod';
 import type Controller from '@oapif/controller/Controller';
 
 import type { HttpMethod, ParamSource } from '@oapif/controller/enums';
-import type DataModel from '@oapif/model/DataModel';
-import type ViewRenderer from '@oapif/model/View';
+import type { ViewRenderer } from '@oapif/model/ViewRenderer';
 
 const BASE_PATH_META = 'custom:base_path' as const;
 const ROUTES_META = 'custom:routes' as const;
@@ -15,32 +14,22 @@ const RESPONSE_META = 'custom:response' as const;
 
 type RouteBasePath = string;
 
-//TODO: Filter with Returning only viewmodel and stuff
-export type ControllerMethodNames<T = Controller> = keyof {
-	[K in keyof T]: T[K] extends (
-		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-		...arg: any[]
-	) => PromiseLike<DataModel | ViewRenderer>
-		? K
-		: never;
-};
-
 type ParameterMeta = {
 	index: number;
 	source: ParamSource;
-	key?: string;
-	validator?: ZodTypeAny;
+	key: string;
+	validator: ZodTypeAny;
 };
 
 type RouteMeta = {
 	method: HttpMethod;
 	path: string;
-	handlerName: ControllerMethodNames;
+	handlerName: string;
 };
 
 type ResponseMeta = {
 	statusCode: number;
-	returnType: ZodType;
+	returnType: ZodType | typeof ViewRenderer;
 };
 
 export const defineBasePathMetaData = (
@@ -66,9 +55,7 @@ export const defineControllerRoutesMetaData = (
 	Reflect.defineMetadata(ROUTES_META, existingRoutes, target.constructor);
 };
 
-export const getControllerRoutesMetaData = <T extends Controller>(
-	controller: Controller,
-) => {
+export const getControllerRoutesMetaData = (controller: Controller) => {
 	return (Reflect.getMetadata(ROUTES_META, controller.constructor) ||
 		[]) as RouteMeta[];
 };
@@ -104,10 +91,25 @@ export const defineControllerResponseMetaData = (
 	handlerName: string,
 	meta: ResponseMeta,
 ) => {
-	Reflect.defineMetadata(RESPONSE_META, meta, target, handlerName);
+	const existingMeta =
+		Reflect.getMetadata(RESPONSE_META, target, handlerName) || [];
+
+	existingMeta.push(meta);
+
+	Reflect.defineMetadata(RESPONSE_META, existingMeta, target, handlerName);
 };
 
-export const getControllerResponseMetaData = (
+export const findControllerResponseMetaData = (
+	target: Controller,
+	handlerName: string,
+	statusCode: ResponseMeta['statusCode'],
+) => {
+	return getControllerResponseMetaData(target, handlerName)?.find(
+		(meta) => meta.statusCode === statusCode,
+	);
+};
+
+const getControllerResponseMetaData = (
 	target: Controller,
 	handlerName: string,
 ) => {
@@ -115,5 +117,5 @@ export const getControllerResponseMetaData = (
 		RESPONSE_META,
 		target,
 		handlerName,
-	) as ResponseMeta;
+	) as ResponseMeta[];
 };

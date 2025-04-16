@@ -1,11 +1,30 @@
-import type DataModel from '@oapif/model/DataModel';
-import type ViewRenderer from '@oapif/model/View';
+import type { ViewRenderer } from '@oapif/model/ViewRenderer';
 
 type AbstractControllerConstructorArgs = [];
 
+type ControllerReturnType<T extends ViewRenderer | unknown = unknown> = {
+	status: number;
+	res: T;
+};
+
+export const isControllerReturnType = (
+	result: unknown,
+): result is ControllerReturnType => {
+	return (
+		typeof result === 'object' &&
+		result !== null &&
+		'status' in result &&
+		typeof result.status === 'number' &&
+		'res' in result
+	);
+};
+
 abstract class Controller {
-	rtn(): PromiseLike<DataModel | ViewRenderer> {
-		throw new Error('This is merely a placeholder method');
+	protected rtn<T>(status: number, val: T): ControllerReturnType<T> {
+		return {
+			status,
+			res: val,
+		} as const;
 	}
 }
 

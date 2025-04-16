@@ -1,0 +1,509 @@
+openapi: 3.0.1
+info:
+  version: '1.0.0'
+  title: BackOffice server to server API
+  contact:
+    name: Research solution dev team
+    email: il_ux_dev@nexon.co.kr
+servers:
+  - url: https://first-admin-dev.nexon.com/eapi
+  - url: https://first-admin-stag.nexon.com/eapi
+  - url: https://first-admin.nexon.com/eapi
+tags:
+  - name: Survey
+paths:
+  /survey/{surveyId}:
+    get:
+      tags:
+        - Survey
+      summary: Get a Survey Info
+      parameters:
+        - $ref: '#/components/parameters/apiHeaderToken'
+        - $ref: '#/components/parameters/apiPathSurveyID'
+        - name: type
+          in: query
+          required: false
+          description: 'Survey filter'
+          schema:
+            type: string
+            example: 'all'
+            enum:
+              - all
+              - cem
+              - public
+              - private
+              - discord
+      responses:
+        '200':
+          description: Successfully Fetch SurveyObject.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseGetSurvey200'
+        '400':
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response400NoSurveyFound'
+        '401':
+          $ref: '#/components/responses/ErrorResponse401'
+        '500':
+          $ref: '#/components/responses/ErrorResponse500'
+  /survey/{surveyId}/register/hook:
+    post:
+      tags:
+        - Survey
+      summary: Register Survey Hook
+      parameters:
+        - $ref: '#/components/parameters/apiHeaderToken'
+        - $ref: '#/components/parameters/apiPathSurveyID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/CEMHookUpdatePayload'
+                - $ref: '#/components/schemas/CPQHookUpdatePayload'
+                - $ref: '#/components/schemas/NFHookUpdatePayload'
+            examples:
+              cem:
+                summary: cem type hook
+                value:
+                  type: 'cem'
+                  ext: { contentId: '12345' }
+              cpq:
+                summary: cpq type hook
+                value:
+                  type: 'cpq'
+                  ext: { questKey: '12345' }
+              nf:
+                summary: nf type hook
+                value:
+                  type: 'nf'
+                  hooks:
+                    [
+                      {
+                        event: 'OPEN',
+                        url: 'https://example.com/hook/open',
+                        ext: { },
+                        secretKeyHeader: { type: 'infaceApiKey', key: 'secret-key' },
+                      },
+                      {
+                        event: 'FINISH',
+                        url: 'https://example.com/hook/finish',
+                        ext: { },
+                        secretKeyHeader: { type: 'infaceApiKey', key: 'secret-key' },
+                      },
+                    ]
+      responses:
+        '200':
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseRegisterSurveyHook200'
+        '400':
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Response400NoSurveyFound'
+                  - $ref: '#/components/schemas/Response400IncompatibleSurveyType'
+                  - $ref: '#/components/schemas/Response400AlreadyRegisteredEvent'
+                  - $ref : '#/components/schemas/Response400InvalidParams'
+              examples:
+                SurveyNotFound:
+                  $ref: '#/components/examples/SurveyNotFoundErrorExample'
+                IncompatibleSurveyType:
+                  $ref: '#/components/examples/IncompatibleSurveyTypeErrorExample'
+                AlreadyRegisteredEvent:
+                  $ref: '#/components/examples/AlreadyRegisteredEventErrorExample'
+                InvalidParameters:
+                  $ref: '#/components/examples/InvalidParamsExample'
+        '401':
+          $ref: '#/components/responses/ErrorResponse401'
+        '500':
+          $ref: '#/components/responses/ErrorResponse500'
+  /survey/{surveyId}/unregister/hook:
+    post:
+      tags:
+        - Survey
+      summary: Unregister Survey Hook
+      parameters:
+        - $ref: '#/components/parameters/apiHeaderToken'
+        - $ref: '#/components/parameters/apiPathSurveyID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/CEMHookDeletePayload'
+                - $ref: '#/components/schemas/CPQHookDeletePayload'
+                - $ref: '#/components/schemas/NFHookDeletePayload'
+            examples:
+              cem:
+                summary: cem type hook
+                value:
+                  type: 'cem'
+                  contentId: '12345'
+              cpq:
+                summary: cpq type hook
+                value:
+                  type: 'cpq'
+                  questKey: '12345'
+              nf:
+                summary: nf type hook
+                value:
+                  type: 'nf'
+                  event: 'OPEN'
+                  url: 'https://example.com/hook'
+      responses:
+        '200':
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseUnregisterSurveyHook200'
+        '400':
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Response400NoSurveyFound'
+                  - $ref: '#/components/schemas/Response400NoEventFound'
+                  - $ref : '#/components/schemas/Response400InvalidParams'
+              examples:
+                SurveyNotFound:
+                  $ref: '#/components/examples/SurveyNotFoundErrorExample'
+                NoEventFound:
+                  $ref: '#/components/examples/NoEventFoundErrorExample'
+                InvalidParameters:
+                  $ref: '#/components/examples/InvalidParamsExample'
+        '401':
+          $ref: '#/components/responses/ErrorResponse401'
+        '500':
+          $ref: '#/components/responses/ErrorResponse500'
+components:
+  examples:
+    SurveyNotFoundErrorExample:
+      summary: No Survey Found
+      description: No survey found for the given ID.
+      value:
+        code: -1001
+        message: 'No survey found'
+        data: { }
+    IncompatibleSurveyTypeErrorExample:
+      summary: Incompatible Survey Type
+      description: Event type is not compatible with the current survey type.
+      value:
+        code: -1002
+        message: 'This action is not compatible with the current survey type.'
+        data: { }
+    AlreadyRegisteredEventErrorExample:
+      summary: Already Registered Event
+      description: The event type is already registered.
+      value:
+        code: -1003
+        message: 'Already registered event'
+        data: { }
+    NoEventFoundErrorExample:
+      summary: No Event Found
+      description: Cannot find the event
+      value:
+        code: -1004
+        message: 'No event found'
+        data: { }
+    InvalidParamsExample:
+      summary: Invalid Parameters
+      description: Invalid parameters provided in the request.
+      value:
+        code: -1005
+        message: 'Invalid parameters'
+        data: { }
+  schemas:
+    SurveyPack:
+      type: object
+      properties:
+        objectId:
+          type: string
+        title:
+          type: string
+        directLinkType:
+          type: string
+          enum:
+            - 'cem'
+            - 'public'
+            - 'private'
+            - 'discord'
+    CEMHookUpdatePayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - 'cem'
+        ext:
+          type: 'object'
+          properties:
+            contentId:
+              type: string
+              example: '12345'
+      example: { typ: 'cem', ext: { contentId: '12345' } }
+    CEMHookDeletePayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - 'cem'
+        contentId:
+          type: string
+          example: '12345'
+      example: { typ: 'cem', contentId: '12345' }
+    CPQHookUpdatePayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - cpq
+        ext:
+          type: 'object'
+          properties:
+            questKey:
+              type: string
+              example: '12345'
+      example: { typ: 'cpq', ext: { questKey: '12345' } }
+    CPQHookDeletePayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - 'cpq'
+        questKey:
+          type: string
+          example: '12345'
+      example: { typ: 'cpq', questKey: '12345' }
+    NFHookUpdatePayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - 'nf'
+        ext:
+          type: object
+          example: { }
+        hooks:
+          type: array
+          items:
+            type: object
+            properties:
+              event:
+                type: string
+                example: 'OPEN'
+                enum:
+                  - 'OPEN'
+                  - 'FINISH'
+              ext:
+                type: object
+                example: { }
+              url:
+                type: string
+                example: 'https://example.com/hook'
+              secretKeyHeader:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                      - 'infaceApiKey'
+                      - 'basicAuthorizationHeader'
+                    example: 'infaceApiKey'
+
+                  key:
+                    type: string
+                    example: 'secret-key'
+    NFHookDeletePayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - 'nf'
+        event:
+          type: string
+          example: 'OPEN'
+          enum:
+            - 'OPEN'
+            - 'FINISH'
+        url:
+          type: string
+          example: 'https://example.com/hook'
+    BaseResponse:
+      type: object
+      required:
+        - code
+        - message
+        - data
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: 'Success'
+        data:
+          type: object
+    Response400NoSurveyFound:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            code:
+              type: integer
+              example: -1001
+            message:
+              example: 'No survey found'
+    Response400IncompatibleSurveyType:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            code:
+              type: integer
+              example: -1002
+            message:
+              example: 'This action is not compatible with the current survey type.'
+            data:
+              example: { }
+    Response400AlreadyRegisteredEvent:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            code:
+              type: integer
+              example: -1003
+            message:
+              example: 'Already registered event'
+            data:
+              example: { }
+    Response400NoEventFound:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            code:
+              type: integer
+              example: -1004
+            message:
+              example: 'No event found'
+            data:
+              example: { }
+    Response400InvalidParams:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            code:
+              type: integer
+              example: -1005
+            message:
+              example: 'Invalid parameters'
+            data:
+              example: { }
+    ResponseGetSurvey200:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            code:
+              type: integer
+              example: 0
+            message:
+              type: string
+              example: 'Success'
+            data:
+              $ref: '#/components/schemas/SurveyPack'
+      example:
+        code: 0
+        message: 'Success'
+        data:
+          surveyPack:
+            id: 123
+            name: 'Test Survey'
+    ResponseRegisterSurveyHook200:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            code:
+              type: integer
+              example: 0
+            message:
+              type: string
+              example: 'success'
+    ResponseUnregisterSurveyHook200:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            code:
+              type: integer
+              example: 0
+            message:
+              type: string
+              example: 'success'
+  responses:
+    ErrorResponse401:
+      description: Validation Failed Error.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/BaseResponse'
+              - type: object
+                properties:
+                  code:
+                    type: integer
+                    example: -1
+                  message:
+                    type: string
+                    example: 'API Key is Either Invalid or Missing'
+    ErrorResponse500:
+      description: Internal Error.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/BaseResponse'
+              - type: object
+                properties:
+                  code:
+                    type: integer
+                    example: -9999
+                  message:
+                    type: string
+                    example: 'Unhandled Error. Please contact support.'
+  parameters:
+    apiHeaderToken:
+      name: x-nf-api-access-token
+      in: header
+      required: true
+      schema:
+        type: string
+        example: 'access-key'
+    apiPathSurveyID:
+      name: surveyId
+      in: path
+      required: true
+      schema:
+        type: string
+        example: 'surveyId'
