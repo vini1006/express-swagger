@@ -1,4 +1,4 @@
-import UserDTO from '@/dto/UserDTO';
+import UserDTO, { UserDtoType } from '@/dto/UserDTO';
 
 import {
 	BasePath,
@@ -25,10 +25,11 @@ class UserController extends Controller {
 		)
 		token: string,
 	) {
-		return this.rtn<ViewRenderer>(
-			402,
-			new ViewRenderer('error', { message: '1MESAS' }),
-		);
+		return {
+			// error
+			status: 401,
+			res: new ViewRenderer('error', { message: '1MESAS' }),
+		};
 	}
 }
 

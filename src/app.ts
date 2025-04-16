@@ -11,6 +11,7 @@ app.set('views', `${__dirname}/views`).set('view engine', 'ejs');
 
 registerRouter(app, {
 	controllers: [UserController],
+	mode: 'dev',
 	commonInvalidParamResponse: (errMessage) => {
 		return {
 			code: -1000,

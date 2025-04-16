@@ -37,7 +37,7 @@ const castReturnType = (
 		return ViewRenderer;
 	}
 
-	return pipe(castArray, flattenDeep, (arr) => {
+	return pipe(castArray, flattenDeep, (arr: ZodTypeAny[]) => {
 		if (arr.length === 0) {
 			throw new Error('Response decorator requires a return type');
 		}

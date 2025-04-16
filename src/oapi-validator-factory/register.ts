@@ -8,6 +8,7 @@ import type { InvalidParamHandler } from '@oapif/type';
 
 type ServerRegisterConfig = {
 	controllers: ControllerConstructor[];
+	mode: 'dev' | 'live';
 	commonInvalidParamResponse?: InvalidParamHandler;
 };
 

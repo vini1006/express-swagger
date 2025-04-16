@@ -17,9 +17,7 @@
 		"@types/lodash": "^4.17.16",
 		"@types/node": "^22.14.1",
 		"bun": "latest",
-		"pkgroll": "^2.12.1",
-		"tsc-alias": "^1.8.15",
-		"tsx": "^4.19.3",
+		"eslint": "^9.24.0",
 		"typescript": "^5.8.3"
 	},
 	"dependencies": {
