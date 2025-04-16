@@ -8,12 +8,12 @@ import type { InvalidParamHandler } from '@oapif/type';
 
 type ServerRegisterConfig = {
 	controllers: ControllerConstructor[];
-	invalidParamResponse?: InvalidParamHandler;
+	commonInvalidParamResponse?: InvalidParamHandler;
 };
 
 export const registerRouter = (
 	app: express.Express,
-	{ controllers, invalidParamResponse }: ServerRegisterConfig,
+	{ controllers, commonInvalidParamResponse }: ServerRegisterConfig,
 ) => {
-	registerControllers(app, controllers, invalidParamResponse);
+	registerControllers(app, controllers, commonInvalidParamResponse);
 };

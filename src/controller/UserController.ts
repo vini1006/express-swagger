@@ -1,4 +1,4 @@
-import UserDTO, { type UserDtoType } from '@/dto/UserDTO';
+import UserDTO from '@/dto/UserDTO';
 
 import {
 	BasePath,
@@ -20,12 +20,15 @@ class UserController extends Controller {
 	getUser(
 		@Param('id', (z) => z.string().nonempty()) id: string,
 		@Query('name', (z) => z.string().nonempty()) name: string,
-		@Header('X-Requested-With', (z) => z.literal('test')) token: string,
+		@Header('X-Requested-With', (z, createCustomError) =>
+			z.literal('test', createCustomError(401, -1, 'Api key is invalid')),
+		)
+		token: string,
 	) {
-		return this.rtn<UserDtoType>(200, {
-			id,
-			name,
-		});
+		return this.rtn<ViewRenderer>(
+			402,
+			new ViewRenderer('error', { message: '1MESAS' }),
+		);
 	}
 }
 

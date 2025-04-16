@@ -1,12 +1,15 @@
 import express, { type Request, type Response } from 'express';
-import type { ZodTypeAny } from 'zod';
+import type { ZodError, ZodTypeAny } from 'zod';
 
-import Controller, {
-	type ControllerConstructor,
-	isControllerReturnType,
-} from '@oapif/controller/Controller';
+import {
+	extractCustomErrorResponseMessage,
+	isCustomErrorResponseMessage,
+} from '@oapif/adapter/zod';
 
-import ParamValidationFailedError from '@oapif/errors/ParamValidationFailedError';
+import { tryCatchWrapper } from '@oapif/utils';
+
+import type { InvalidParamHandler } from '@oapif/type';
+
 import {
 	findControllerResponseMetaData,
 	getBasePathMetaData,
@@ -14,20 +17,14 @@ import {
 	getControllerRoutesMetaData,
 } from '@oapif/reflect-metadata/controller';
 
-import { ViewRenderer } from '@oapif/model/ViewRenderer';
-import type { InvalidParamHandler } from '@oapif/type';
-import { tryCatchWrapper } from '@oapif/utils';
+import ParamValidationFailedError from '@oapif/errors/ParamValidationFailedError';
 
-export { BasePath } from '@oapif/controller/decorators/basePath';
-export { Get, Post } from '@oapif/controller/decorators/route';
-export {
-	Param,
-	Query,
-	Body,
-	Header,
-} from '@oapif/controller/decorators/param';
-export { Controller, type ControllerConstructor };
-export { Response } from '@oapif/controller/decorators/response';
+import Controller, {
+	type ControllerConstructor,
+	isControllerReturnType,
+} from '@oapif/controller/Controller';
+
+import { ViewRenderer } from '@oapif/model/ViewRenderer';
 
 export const registerControllers = (
 	app: express.Express,
@@ -35,12 +32,10 @@ export const registerControllers = (
 	InvalidParamHandler?: InvalidParamHandler,
 ) => {
 	for (const ControllerClass of controllers) {
-		const instance = new ControllerClass();
 		const router = express.Router();
+		const instance = new ControllerClass();
 
-		const basePath = getBasePathMetaData(instance);
-		const routeMetaList = getControllerRoutesMetaData(instance);
-
+		const routeMetaList = getControllerRoutesMetaData(instance) || [];
 		for (const routeMeta of routeMetaList) {
 			router[routeMeta.method](routeMeta.path, async (req, res) => {
 				const [args, castError] = tryCatchWrapper(() =>
@@ -48,29 +43,26 @@ export const registerControllers = (
 				);
 
 				if (args === null) {
-					if (castError) {
-						if (castError instanceof ParamValidationFailedError) {
-							res.status(400).json(
-								InvalidParamHandler
-									? InvalidParamHandler(castError.message)
-									: {
-											error: castError.message,
-										},
-							);
-							return;
-						}
+					const rtn = handleParamCastError(castError);
 
-						console.error(castError);
-						res.status(500).json({
-							error: 'Internal Server Error',
+					if (rtn.isCustom) {
+						res.status(rtn.httpStatus).json({
+							code: rtn.code,
+							message: rtn.message,
 						});
+
+						return;
+					}
+					if (InvalidParamHandler) {
+						res.status(400).json(InvalidParamHandler(rtn.message));
 						return;
 					}
 
-					console.error('Unknown error occurred while casting parameters');
-					res.status(500).json({
-						error: 'Internal Server Error',
+					res.status(rtn.httpStatus).json({
+						code: rtn.code,
+						message: rtn.message,
 					});
+
 					return;
 				}
 
@@ -83,6 +75,7 @@ export const registerControllers = (
 					console.error(error);
 					if (!res.headersSent) {
 						res.status(500).json({
+							code: -9999,
 							error: 'Internal Server Error',
 						});
 					}
@@ -90,6 +83,7 @@ export const registerControllers = (
 			});
 		}
 
+		const basePath = getBasePathMetaData(instance);
 		app.use(basePath, router);
 	}
 };
@@ -184,8 +178,63 @@ const createControllerParameters = (
 const validateAndCastToType = (value: unknown, validator: ZodTypeAny) => {
 	const result = validator.safeParse(value);
 	if (result.error) {
-		throw new ParamValidationFailedError(result.error.message);
+		const customError = result.error.errors.find((e) =>
+			isCustomErrorResponseMessage(e.message),
+		) as ZodError | undefined;
+
+		if (customError) {
+			const { httpStatus, errorCode, message } =
+				extractCustomErrorResponseMessage(customError.message);
+
+			throw new ParamValidationFailedError(
+				message,
+				true,
+				httpStatus,
+				errorCode,
+			);
+		}
+
+		throw new ParamValidationFailedError(result.error.message, false);
 	}
 
 	return value;
 };
+
+const handleParamCastError = (error: unknown) => {
+	if (error instanceof ParamValidationFailedError) {
+		if (error.isCustom) {
+			return {
+				isCustom: true,
+				httpStatus: error.httpStatus!,
+				code: error.errorCode!,
+				message: error.message!,
+			};
+		}
+
+		return {
+			isCustom: false,
+			httpStatus: 400,
+			code: -9999,
+			message: error.message,
+		};
+	}
+
+	console.error(error || 'Unknown error occurred while casting parameters');
+	return {
+		isCustom: false,
+		httpStatus: 500,
+		code: -9999,
+		message: 'Internal Server Error',
+	};
+};
+
+export { BasePath } from '@oapif/controller/decorators/basePath';
+export { Get, Post } from '@oapif/controller/decorators/route';
+export {
+	Param,
+	Query,
+	Body,
+	Header,
+} from '@oapif/controller/decorators/param';
+export { Controller, type ControllerConstructor };
+export { Response } from '@oapif/controller/decorators/response';

@@ -7,11 +7,11 @@ import UserController from '@/controller/UserController';
 const app = express();
 const PORT = 8080;
 
-app.set('view engine', 'ejs').set('views', '/views');
+app.set('views', `${__dirname}/views`).set('view engine', 'ejs');
 
 registerRouter(app, {
 	controllers: [UserController],
-	invalidParamResponse: (errMessage) => {
+	commonInvalidParamResponse: (errMessage) => {
 		return {
 			code: -1000,
 			msg: errMessage,
