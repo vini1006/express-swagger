@@ -27,6 +27,7 @@ export {
 	Header,
 } from '@oapif/controller/decorators/param';
 export { Controller, type ControllerConstructor };
+export { Response } from '@oapif/controller/decorators/response';
 
 export const registerControllers = (
 	app: express.Express,
