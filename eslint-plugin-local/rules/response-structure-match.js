@@ -1,4 +1,4 @@
-const {ESLintUtils, ASTUtils} = require('@typescript-eslint/utils');
+const {ESLintUtils} = require('@typescript-eslint/utils');
 const ts = require('typescript');
 
 const createRule = ESLintUtils.RuleCreator(() => '');
@@ -151,8 +151,4 @@ function findReturnStatementsSafely(rootNode) {
 
 function findReturnValue (ret, key) {
     return ret.argument.properties.find((p) => p.type === 'Property' && p.key.type === 'Identifier' && p.key.name === key);
-}
-
-function print(msg) {
-    console.log(`log:::: `, msg);
 }
