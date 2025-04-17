@@ -1,4 +1,4 @@
-import UserDTO, { UserDtoType } from '@/dto/UserDTO';
+import UserDTO, { type UserDtoType } from '@/dto/UserDTO';
 
 import {
 	BasePath,
@@ -25,13 +25,10 @@ class UserController extends Controller {
 		)
 		token: string,
 	) {
-		return {
-			status: 200,
-			res: {
-				id: 'string',
-				value: 1234,
-			},
-		};
+		return this.rtn<UserDtoType>(201, {
+			id,
+			name,
+		});
 	}
 }
 

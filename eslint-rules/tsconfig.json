@@ -7,10 +7,6 @@
     "moduleDetection": "force",
     "module": "ESNext",
     "moduleResolution": "node16",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-    },
     "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,

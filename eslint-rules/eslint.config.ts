@@ -1,6 +1,6 @@
-import { validateResponse } from '@/rules/validate-response';
 import tsParser from '@typescript-eslint/parser';
 import { defineConfig } from 'eslint/config';
+import { validateResponse } from './src/rules/validate-response';
 
 export default defineConfig([
 	{

@@ -20,11 +20,11 @@ export const isControllerReturnType = (
 };
 
 abstract class Controller {
-	protected rtn<T>(status: number, val: T): ControllerReturnType<T> {
+	protected rtn<T = void, U extends T = T>(status: number, val: U) {
 		return {
 			status,
 			res: val,
-		} as const;
+		};
 	}
 }
 

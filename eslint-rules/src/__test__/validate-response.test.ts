@@ -1,7 +1,6 @@
-import { validateResponse } from '@/rules/validate-response';
-// import tsParser from '@typescript-eslint/parser';
 import { RuleTester } from '@typescript-eslint/rule-tester';
 import type { RuleModule } from '@typescript-eslint/utils/ts-eslint';
+import { validateResponse } from '../rules/validate-response';
 
 const ruleTester = new RuleTester();
 ruleTester.run(

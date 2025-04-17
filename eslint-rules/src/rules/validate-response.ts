@@ -47,10 +47,31 @@ export const validateResponse: RuleDefinition = {
 	},
 	create(context) {
 		return {
-			MethodDefinition(node: TSESTree.MethodDefinition) {
-				const responses = extractResponseDecorators(node);
-				reportDuplicateStatuses(context, responses);
-				validateReturnFormat(context, node, responses);
+			ClassDeclaration(classNode: TSESTree.ClassDeclaration) {
+				const hasBasePath = classNode.decorators?.some((decorator) => {
+					return (
+						decorator.expression.type === 'CallExpression' &&
+						decorator.expression.callee.type === 'Identifier' &&
+						decorator.expression.callee.name === 'BasePath'
+					);
+				});
+
+				if (!hasBasePath) return;
+
+				for (const element of classNode.body.body) {
+					if (element.type !== 'MethodDefinition' || element.kind !== 'method')
+						continue;
+
+					if (element.type !== 'MethodDefinition' || element.kind !== 'method')
+						continue;
+
+					const responses = extractResponseDecorators(element);
+
+					if (responses.length === 0) continue;
+
+					reportDuplicateStatuses(context, responses);
+					validateReturnFormat(context, element, responses);
+				}
 			},
 		};
 	},
