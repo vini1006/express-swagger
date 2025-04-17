@@ -4,27 +4,27 @@ import type { ZodError, ZodTypeAny } from 'zod';
 import {
 	extractCustomErrorResponseMessage,
 	isCustomErrorResponseMessage,
-} from '@oapif/adapter/zod';
+} from '@/oapif/adapter/zod';
 
-import { tryCatchWrapper } from '@oapif/utils';
+import { tryCatchWrapper } from '@/oapif/utils';
 
-import type { InvalidParamHandler } from '@oapif/type';
+import type { InvalidParamHandler } from '@/oapif/type';
 
 import {
 	findControllerResponseMetaData,
 	getBasePathMetaData,
 	getControllerRouteParamsMetaData,
 	getControllerRoutesMetaData,
-} from '@oapif/reflect-metadata/controller';
+} from '@/oapif/reflect-metadata/controller';
 
-import ParamValidationFailedError from '@oapif/errors/ParamValidationFailedError';
+import ParamValidationFailedError from '@/oapif/errors/ParamValidationFailedError';
 
 import Controller, {
 	type ControllerConstructor,
 	isControllerReturnType,
-} from '@oapif/controller/Controller';
+} from '@/oapif/controller/Controller';
 
-import { ViewRenderer } from '@oapif/model/ViewRenderer';
+import { ViewRenderer } from '@/oapif/model/ViewRenderer';
 
 export const registerControllers = (
 	app: express.Express,
@@ -178,8 +178,15 @@ const createControllerParameters = (
 const validateAndCastToType = (value: unknown, validator: ZodTypeAny) => {
 	const result = validator.safeParse(value);
 	if (result.error) {
-		const customError = result.error.errors.find((e) =>
-			isCustomErrorResponseMessage(e.message),
+		const customError = result.error.errors.find((e: unknown) =>
+			isCustomErrorResponseMessage(
+				(typeof e === 'object' &&
+					e !== null &&
+					'message' in e &&
+					typeof e.message === 'string' &&
+					e.message) ||
+					'',
+			),
 		) as ZodError | undefined;
 
 		if (customError) {
@@ -228,13 +235,13 @@ const handleParamCastError = (error: unknown) => {
 	};
 };
 
-export { BasePath } from '@oapif/controller/decorators/basePath';
-export { Get, Post } from '@oapif/controller/decorators/route';
+export { BasePath } from '@/oapif/controller/decorators/basePath';
+export { Get, Post } from '@/oapif/controller/decorators/route';
 export {
 	Param,
 	Query,
 	Body,
 	Header,
-} from '@oapif/controller/decorators/param';
+} from '@/oapif/controller/decorators/param';
 export { Controller, type ControllerConstructor };
-export { Response } from '@oapif/controller/decorators/response';
+export { Response } from '@/oapif/controller/decorators/response';

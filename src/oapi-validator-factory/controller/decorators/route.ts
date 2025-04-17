@@ -1,6 +1,6 @@
-import Controller from '@oapif/controller/Controller';
-import type { HttpMethod } from '@oapif/controller/enums';
-import { defineControllerRoutesMetaData } from '@oapif/reflect-metadata/controller';
+import Controller from '@/oapif/controller/Controller';
+import type { HttpMethod } from '@/oapif/controller/enums';
+import { defineControllerRoutesMetaData } from '@/oapif/reflect-metadata/controller';
 
 export const Get = createMethodDecorator('get');
 export const Post = createMethodDecorator('post');

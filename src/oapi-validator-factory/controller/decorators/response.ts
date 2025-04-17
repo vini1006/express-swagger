@@ -2,11 +2,11 @@ import { castArray, flattenDeep, pipe } from 'lodash/fp';
 import { z } from 'zod';
 import type { ZodTypeAny } from 'zod/lib/types';
 
-import Controller from '@oapif/controller/Controller';
+import Controller from '@/oapif/controller/Controller';
 
-import { ViewRenderer } from '@oapif/model/ViewRenderer';
+import { ViewRenderer } from '@/oapif/model/ViewRenderer';
 
-import { defineControllerResponseMetaData } from '@oapif/reflect-metadata/controller';
+import { defineControllerResponseMetaData } from '@/oapif/reflect-metadata/controller';
 
 export const Response = (
 	statusCode: number,

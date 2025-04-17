@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { AnyConstructor } from '@oapif/type';
+import type { AnyConstructor } from '@/oapif/type';
 
 const SCHEMA_META = 'custom:data-schema-label' as const;
 

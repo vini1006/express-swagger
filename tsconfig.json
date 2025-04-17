@@ -10,7 +10,8 @@
 		"baseUrl": ".",
 		"paths": {
 			"@/*": ["src/*"],
-			"@oapif/*": ["src/oapi-validator-factory/*"]
+			"@/oapif/*": ["src/oapi-validator-factory/*"],
+			"@eslint-rules/*": ["eslint-rules/*"]
 		},
 		"allowImportingTsExtensions": false,
 		"resolveJsonModule": true,

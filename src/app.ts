@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { registerRouter } from '@oapif/register';
+import { registerRouter } from '@/oapif/register';
 
 import UserController from '@/controller/UserController';
 

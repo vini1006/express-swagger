@@ -2,10 +2,10 @@ import 'reflect-metadata';
 
 import type { ZodType, ZodTypeAny } from 'zod';
 
-import type Controller from '@oapif/controller/Controller';
+import type Controller from '@/oapif/controller/Controller';
 
-import type { HttpMethod, ParamSource } from '@oapif/controller/enums';
-import type { ViewRenderer } from '@oapif/model/ViewRenderer';
+import type { HttpMethod, ParamSource } from '@/oapif/controller/enums';
+import type { ViewRenderer } from '@/oapif/model/ViewRenderer';
 
 const BASE_PATH_META = 'custom:base_path' as const;
 const ROUTES_META = 'custom:routes' as const;

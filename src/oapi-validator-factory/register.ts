@@ -3,8 +3,8 @@ import type express from 'express';
 import {
 	type ControllerConstructor,
 	registerControllers,
-} from '@oapif/controller';
-import type { InvalidParamHandler } from '@oapif/type';
+} from '@/oapif/controller';
+import type { InvalidParamHandler } from '@/oapif/type';
 
 type ServerRegisterConfig = {
 	controllers: ControllerConstructor[];

@@ -1,5 +1,5 @@
-import Controller from '@oapif/controller/Controller';
-import { defineBasePathMetaData } from '@oapif/reflect-metadata/controller';
+import Controller from '@/oapif/controller/Controller';
+import { defineBasePathMetaData } from '@/oapif/reflect-metadata/controller';
 
 export function BasePath(basePath: string): ClassDecorator {
 	return (target) => {

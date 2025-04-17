@@ -1,4 +1,4 @@
-import type { ViewRenderer } from '@oapif/model/ViewRenderer';
+import type { ViewRenderer } from '@/oapif/model/ViewRenderer';
 
 type AbstractControllerConstructorArgs = [];
 

@@ -1,4 +1,4 @@
-import { type InferSchema, makeSchema } from '@oapif/model/Schema';
+import { type InferSchema, makeSchema } from '@/oapif/model/Schema';
 
 const UserDto = makeSchema((z) =>
 	z.object({

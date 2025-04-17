@@ -4,7 +4,8 @@
 	"main": "./src/app.ts",
 	"scripts": {
 		"dev": "bun run --watch src/app.ts",
-		"biome:check": "biome check --write"
+		"biome:check": "biome check --write",
+		"eslint-rule:test": "bun test --testPathPattern=eslint-rule"
 	},
 	"type": "commonjs",
 	"keywords": [],
@@ -24,6 +25,7 @@
 		"typescript": "^5.8.3"
 	},
 	"dependencies": {
+		"@typescript-eslint/rule-tester": "^8.30.1",
 		"ejs": "^3.1.10",
 		"express": "^5.1.0",
 		"lodash": "^4.17.21",

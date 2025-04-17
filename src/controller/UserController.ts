@@ -8,9 +8,9 @@ import {
 	Param,
 	Query,
 	Response,
-} from '@oapif/controller';
+} from '@/oapif/controller';
 
-import { ViewRenderer } from '@oapif/model/ViewRenderer';
+import { ViewRenderer } from '@/oapif/model/ViewRenderer';
 
 @BasePath('/user')
 class UserController extends Controller {
@@ -26,7 +26,7 @@ class UserController extends Controller {
 		token: string,
 	) {
 		return {
-			status: 201,
+			status: 200,
 			res: {
 				id: 'string',
 				value: 1234,
