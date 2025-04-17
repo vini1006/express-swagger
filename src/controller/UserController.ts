@@ -26,9 +26,11 @@ class UserController extends Controller {
 		token: string,
 	) {
 		return {
-			// error
-			status: 401,
-			res: new ViewRenderer('error', { message: '1MESAS' }),
+			status: 201,
+			res: {
+				id: 'string',
+				value: 1234,
+			},
 		};
 	}
 }

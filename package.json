@@ -6,7 +6,7 @@
 		"dev": "bun run --watch src/app.ts",
 		"biome:check": "biome check --write"
 	},
-	"type": "module",
+	"type": "commonjs",
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
@@ -16,6 +16,9 @@
 		"@types/express": "^5.0.1",
 		"@types/lodash": "^4.17.16",
 		"@types/node": "^22.14.1",
+		"@typescript-eslint/eslint-plugin": "^8.30.1",
+		"@typescript-eslint/parser": "^8.30.1",
+		"@typescript-eslint/utils": "^8.30.1",
 		"bun": "latest",
 		"eslint": "^9.24.0",
 		"typescript": "^5.8.3"
