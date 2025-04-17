@@ -36,10 +36,12 @@ export const validateResponse: RuleDefinition = {
 			duplicateStatus: 'Duplicate @Response for status {{status}}.',
 			invalidReturnStatus:
 				'Returned status {{status}} is not defined in @Response.',
-			invalidReturnRes:
-				'Return res does not match expected type for status {{status}}.',
 			emptyReturn:
 				'Return statement is empty, but @Response decorators are defined.',
+			returnWithOutThisRtn:
+				'Return must be in the form: return this.rtn(status, res)',
+			returnStatusShouldBeNumber:
+				'First argument to this.rtn must be a numeric status code',
 		},
 		language: 'typescript',
 	},
@@ -48,8 +50,7 @@ export const validateResponse: RuleDefinition = {
 			MethodDefinition(node: TSESTree.MethodDefinition) {
 				const responses = extractResponseDecorators(node);
 				reportDuplicateStatuses(context, responses);
-				validateReturnStatements(context, node, responses);
-				validateResTypes(context, node, responses);
+				validateReturnFormat(context, node, responses);
 			},
 		};
 	},
@@ -118,61 +119,7 @@ function reportDuplicateStatuses(
 	}
 }
 
-function validateReturnStatements(
-	context: Context,
-	node: TSESTree.MethodDefinition,
-	responses: ResponseInfo[],
-): void {
-	const functionBody = node.value.body;
-	if (!functionBody) return;
-
-	const validStatuses = new Set(responses.map((r) => r.status));
-
-	let hasAnyValidReturn = false;
-
-	for (const stmt of functionBody.body) {
-		if (
-			stmt.type === 'ReturnStatement' &&
-			stmt.argument?.type === 'ObjectExpression'
-		) {
-			const obj = stmt.argument;
-
-			const statusProp = obj.properties.find(
-				(p) =>
-					p.type === 'Property' &&
-					p.key.type === 'Identifier' &&
-					p.key.name === 'status',
-			) as TSESTree.Property | undefined;
-
-			if (
-				statusProp &&
-				statusProp.value.type === 'Literal' &&
-				typeof statusProp.value.value === 'number'
-			) {
-				const status = statusProp.value.value;
-				hasAnyValidReturn = true;
-
-				if (!validStatuses.has(status)) {
-					context.report({
-						node: statusProp,
-						messageId: 'invalidReturnStatus',
-						data: { status: `${status}` },
-					});
-				}
-			}
-		}
-	}
-
-	if (responses.length > 0 && !hasAnyValidReturn) {
-		context.report({
-			node,
-			messageId: 'emptyReturn',
-			data: { status: 'none (missing return)' },
-		});
-	}
-}
-
-function validateResTypes(
+function validateReturnFormat(
 	context: Context,
 	node: TSESTree.MethodDefinition,
 	responses: ResponseInfo[],
@@ -180,72 +127,67 @@ function validateResTypes(
 	const body = node.value.body;
 	if (!body) return;
 
-	const responseMap = new Map<number, string>();
-	for (const res of responses) {
-		responseMap.set(res.status, res.type);
-	}
+	const validStatuses = new Set(responses.map((r) => r.status));
+	let hasAnyReturn = false;
 
 	for (const stmt of body.body) {
-		if (
-			stmt.type === 'ReturnStatement' &&
-			stmt.argument?.type === 'ObjectExpression'
-		) {
-			const obj = stmt.argument;
+		if (stmt.type !== 'ReturnStatement') continue;
 
-			const statusProp = obj.properties.find(
-				(p) =>
-					p.type === 'Property' &&
-					p.key.type === 'Identifier' &&
-					p.key.name === 'status',
-			) as TSESTree.Property | undefined;
+		hasAnyReturn = true;
+		const expr = stmt.argument;
 
-			const resProp = obj.properties.find(
-				(p) =>
-					p.type === 'Property' &&
-					p.key.type === 'Identifier' &&
-					p.key.name === 'res',
-			) as TSESTree.Property | undefined;
-
-			if (
-				!statusProp ||
-				!resProp ||
-				statusProp.value.type !== 'Literal' ||
-				typeof statusProp.value.value !== 'number'
-			) {
-				continue;
-			}
-
-			const status = statusProp.value.value;
-			const expectedType = responseMap.get(status);
-			if (!expectedType) continue;
-
-			const actual = resProp.value;
-
-			let matches = false;
-
-			// Case 1: Identifier (e.g., UserDTO)
-			if (actual.type === 'Identifier' && actual.name === expectedType) {
-				matches = true;
-			}
-
-			// Case 2: NewExpression (e.g., new ViewRenderer())
-			if (
-				actual.type === 'NewExpression' &&
-				actual.callee.type === 'Identifier' &&
-				actual.callee.name === expectedType
-			) {
-				matches = true;
-			}
-
-			// Case 3: z.infer<UserDTO> → MemberExpression or CallExpression (skip for now)
-
-			if (!matches) {
-				context.report({
-					node: resProp,
-					messageId: 'invalidReturnRes',
-					data: { status: `${status}` },
-				});
-			}
+		if (!expr) {
+			context.report({
+				node: stmt,
+				messageId: 'emptyReturn',
+			});
+			continue;
 		}
+
+		if (
+			expr.type !== 'CallExpression' ||
+			expr.callee.type !== 'MemberExpression' ||
+			expr.callee.object.type !== 'ThisExpression' ||
+			expr.callee.property.type !== 'Identifier' ||
+			expr.callee.property.name !== 'rtn'
+		) {
+			context.report({
+				node: stmt,
+				messageId: 'returnWithOutThisRtn',
+			});
+			continue;
+		}
+
+		const [statusArg] = expr.arguments;
+
+		if (
+			!statusArg ||
+			statusArg.type !== 'Literal' ||
+			typeof statusArg.value !== 'number'
+		) {
+			context.report({
+				node: stmt,
+				messageId: 'returnStatusShouldBeNumber',
+			});
+			continue;
+		}
+
+		const status = statusArg.value;
+
+		if (!validStatuses.has(status)) {
+			context.report({
+				node: statusArg,
+				messageId: 'invalidReturnStatus',
+				data: { status: `${status}` },
+			});
+		}
+	}
+
+	// ✅ 바디에 return문 자체가 없을 때
+	if (!hasAnyReturn && responses.length > 0) {
+		context.report({
+			node,
+			messageId: 'emptyReturn',
+		});
 	}
 }

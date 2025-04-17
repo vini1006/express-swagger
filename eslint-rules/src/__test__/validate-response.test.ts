@@ -3,19 +3,6 @@ import { validateResponse } from '@/rules/validate-response';
 import { RuleTester } from '@typescript-eslint/rule-tester';
 import type { RuleModule } from '@typescript-eslint/utils/ts-eslint';
 
-// // @ts-ignore
-// global.afterAll = (args) => {
-// 	args();
-// };
-// // @ts-ignore
-// global.afterEach = () => {};
-// // @ts-ignore
-// global.beforeAll = () => {};
-// // @ts-ignore
-// global.beforeEach = () => {};
-// // @ts-ignore
-// global.describe = () => {};
-
 const ruleTester = new RuleTester();
 ruleTester.run(
 	'validate-response',
@@ -23,91 +10,119 @@ ruleTester.run(
 		| 'duplicateStatus'
 		| 'invalidReturnStatus'
 		| 'emptyReturn'
-		| 'invalidReturnRes',
+		| 'returnWithOutThisRtn'
+		| 'returnStatusShouldBeNumber',
 		[]
 	>,
 	{
 		valid: [
 			{
 				code: `
-						class A {
-						  @Response(200, ViewRenderer)
-						  getUser() {
-							return { status: 200, res: new ViewRenderer() };
-						  }
-						}
-					`,
+				  const UserDTO = z.object({ name: z.string() });
+				  class A {
+					@Response(200, UserDTO)
+					getUser() {
+					  return this.rtn(200, { name: "hi" });
+					}
+				  }
+				`,
 			},
 			{
 				code: `
-					class UserController {
-					  @Response(200, UserDTO)
-					  getUser() {
-						return { status: 200, res: {} };
-					  }
+				  class A {
+					@Response(200, ViewRenderer)
+					renderPage() {
+					  return this.rtn(200, new ViewRenderer());
 					}
-				  `,
+				  }
+				`,
 			},
 			{
 				code: `
-					class A {
-					  @Response(200, UserDTO)
-					  @Response(400, ViewRenderer)
-					  handler() {
-						return { status: 400, res: {} };
-					  }
+				  class A {
+					@Response(200, UserDTO)
+					@Response(400, ViewRenderer)
+					handle() {
+					  return this.rtn(400, new ViewRenderer());
 					}
-				  `,
+				  }
+				`,
+			},
+			{
+				code: `
+				  class A {
+					@Response(200, UserDTO)
+					@Response(400, ViewRenderer)
+					handle() {
+					  return this.rtn(200, {});
+					}
+				  }
+				`,
 			},
 		],
 		invalid: [
 			{
+				// return 없음
 				code: `
-						class A {
-						  @Response(200, UserDTO)
-						  getUser() {
-							return { status: 200, res: new ViewRenderer() }; // ❌ 잘못된 타입
-						  }
-						}
-				  `,
-				errors: [{ messageId: 'invalidReturnRes', data: { status: '200' } }],
+				  class A {
+					@Response(200, UserDTO)
+					noReturn() {}
+				  }
+				`,
+				errors: [{ messageId: 'emptyReturn' }],
 			},
 			{
+				// return 없음
 				code: `
-						class A {
-						  @Response(200, UserDTO)
-						  @Response(400, ViewRenderer)
-						  handler() {}
-						}
-				  `,
-				errors: [
-					{
-						messageId: 'emptyReturn',
-					},
-				],
-			},
-			{
-				code: `
-					class B {
-					  @Response(200, UserDTO)
-					  @Response(200, UserDTO)
-					  handler() {
-						return { status: 200, res: {} };
-					  }
+				  class A {
+					@Response(200, UserDTO)
+					notNumber() {
+					  return this.rtn("200", {});
 					}
-				  `,
+				  }
+				`,
+				errors: [{ messageId: 'returnStatusShouldBeNumber' }],
+			},
+			{
+				// 중복된 status
+				code: `
+				  class B {
+					@Response(200, UserDTO)
+					@Response(200, UserDTO)
+					handler() {
+					  return this.rtn(200, {});
+					}
+				  }
+				`,
 				errors: [{ messageId: 'duplicateStatus' }],
 			},
 			{
+				// 정의되지 않은 status
 				code: `
-					class C {
-					  @Response(200, UserDTO)
-					  getUser() {
-						return { status: 404, res: {} };
-					  }
+				  class C {
+					@Response(200, UserDTO)
+					getUser() {
+					  return this.rtn(404, {});
 					}
-				  `,
+				  }
+				`,
 				errors: [{ messageId: 'invalidReturnStatus', data: { status: '404' } }],
+			},
+			{
+				// this.rtn 아님
+				code: `
+				  class A {
+					@Response(200, UserDTO)
+					get() {
+					  return { status: 200, res: {} };
+					}
+				  }
+				`,
+				errors: [
+					{
+						messageId: 'returnWithOutThisRtn',
+					},
+				],
 			},
 		],
 	},
