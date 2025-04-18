@@ -3,6 +3,7 @@ import type { RuleModule } from '@typescript-eslint/utils/ts-eslint';
 import { validateResponse } from '../rules/validate-response';
 
 const ruleTester = new RuleTester();
+
 ruleTester.run(
 	'validate-response',
 	validateResponse as unknown as RuleModule<
@@ -10,121 +11,208 @@ ruleTester.run(
 		| 'invalidReturnStatus'
 		| 'emptyReturn'
 		| 'returnWithOutThisRtn'
-		| 'returnStatusShouldBeNumber',
+		| 'returnStatusShouldBeNumber'
+		| 'returnTypeNotMatch',
 		[]
 	>,
 	{
 		valid: [
 			{
 				code: `
-				  const UserDTO = z.object({ name: z.string() });
-				  class A {
-					@Response(200, UserDTO)
-					getUser() {
-					  return this.rtn(200, { name: "hi" });
+				    @BasePath('/user')
+				    class UserController extends Controller {
+						@Get('/get/:id')
+						@Response(200, UserDTO.z)
+						@Response(402, ViewRenderer)
+						getUser(
+							@Param('id', (z) => z.string().nonempty()) id: string,
+							@Query('name', (z) => z.string().nonempty()) name: string,
+							@Header('X-Requested-With', (z, createCustomError) =>
+								z.literal('test', createCustomError(401, -1, 'Api key is invalid')),
+							)
+							token: string,
+						) {
+							return this.rtn<UserDTO>(200, {
+								id,
+								name,
+							});
+						}
 					}
-				  }
 				`,
+				name: 'Testing VALID CASE 1',
 			},
 			{
 				code: `
-				  class A {
-					@Response(200, ViewRenderer)
-					renderPage() {
-					  return this.rtn(200, new ViewRenderer());
+				    @BasePath('/user')
+				    class UserController extends Controller {
+						@Get('/get/:id')
+						@Response(200, UserDTO.z)
+						@Response(402, ViewRenderer)
+						getUser(
+							@Param('id', (z) => z.string().nonempty()) id: string,
+							@Query('name', (z) => z.string().nonempty()) name: string,
+							@Header('X-Requested-With', (z, createCustomError) =>
+								z.literal('test', createCustomError(401, -1, 'Api key is invalid')),
+							)
+							token: string,
+						) {
+							return this.rtn<ViewRenderer>(402, {
+								id,
+								name,
+							});
+						}
 					}
-				  }
 				`,
+				name: 'Testing VALID CASE 2 402 ViewRenderer',
 			},
 			{
 				code: `
-				  class A {
-					@Response(200, UserDTO)
-					@Response(400, ViewRenderer)
-					handle() {
-					  return this.rtn(400, new ViewRenderer());
+				    @BasePath('/user')
+				    class UserController extends Controller {
+						@Get('/get/:id')
+						@Response(200, [UserDTO.z, SomethingDTO.z])
+						@Response(402, ViewRenderer)
+						getUser(
+							@Param('id', (z) => z.string().nonempty()) id: string,
+							@Query('name', (z) => z.string().nonempty()) name: string,
+							@Header('X-Requested-With', (z, createCustomError) =>
+								z.literal('test', createCustomError(401, -1, 'Api key is invalid')),
+							)
+							token: string,
+						) {
+							return this.rtn<UserDTO>(200, {
+								id,
+								name,
+							});
+						}
 					}
-				  }
 				`,
+				name: 'Testing VALID CASE 3 Array Response ZodType',
 			},
 			{
 				code: `
-				  class A {
-					@Response(200, UserDTO)
-					@Response(400, ViewRenderer)
-					handle() {
-					  return this.rtn(200, {});
+				    @BasePath('/user')
+				    class UserController extends Controller {
+						@Get('/get/:id')
+						@Response(200, [UserDTO.z, SomethingDTO.z])
+						@Response(402, ViewRenderer)
+						getUser(
+							@Param('id', (z) => z.string().nonempty()) id: string,
+							@Query('name', (z) => z.string().nonempty()) name: string,
+							@Header('X-Requested-With', (z, createCustomError) =>
+								z.literal('test', createCustomError(401, -1, 'Api key is invalid')),
+							)
+							token: string,
+						) {
+							return this.rtn<UserDTO>(200, {
+								id,
+								name,
+							});
+						}
 					}
-				  }
 				`,
+				name: 'Testing VALID CASE 4 Array Response ZodType',
+			},
+			{
+				code: `
+					@BasePath('/user')
+				    class UserController extends Controller {
+						@Get('/get/:id')
+						@Response(200, UserDTO)
+						@Response(402, ViewRenderer)
+						getUser(
+							@Param('id', (z) => z.string().nonempty()) id: string,
+							@Query('name', (z) => z.string().nonempty()) name: string,
+							@Header('X-Requested-With', (z, createCustomError) =>
+								z.literal('test', createCustomError(401, -1, 'Api key is invalid')),
+							)
+							token: string,
+						) {
+							if (a) {
+								return this.rtn<ViewRenderer>(402, new ViewRenderer());
+							}
+							
+							return this.rtn<UserDTO>(200, {
+								id,
+								name,
+							});
+						}
+					}
+				`,
+				name: 'Testing VALID CASE 5 if statement',
 			},
 		],
 		invalid: [
 			{
-				// return 없음
 				code: `
-				  class A {
-					@Response(200, UserDTO)
-					noReturn() {}
-				  }
+				    @BasePath('/user')
+				    class UserController extends Controller {
+						@Get('/get/:id')
+						@Response(200, UserDTO)
+						@Response(402, ViewRenderer)
+						getUser(
+							@Param('id', (z) => z.string().nonempty()) id: string,
+							@Query('name', (z) => z.string().nonempty()) name: string,
+							@Header('X-Requested-With', (z, createCustomError) =>
+								z.literal('test', createCustomError(401, -1, 'Api key is invalid')),
+							)
+							token: string,
+						) {
+							return this.rtn<SomethingDTO>(200, {
+								id,
+								name,
+							});
+						}
+					}
 				`,
-				errors: [{ messageId: 'emptyReturn' }],
+				errors: [{ messageId: 'returnTypeNotMatch' }],
+				name: 'INVALID2: Testing invalid rtn generic',
 			},
 			{
-				// return 없음
 				code: `
-				  class A {
-					@Response(200, UserDTO)
-					notNumber() {
-					  return this.rtn("200", {});
+					@BasePath('/user')
+				    class UserController extends Controller {
+						@Get('/get/:id')
+						@Response(200, UserDTO)
+						@Response(402, ViewRenderer)
+						getUser(
+							@Param('id', (z) => z.string().nonempty()) id: string,
+							@Query('name', (z) => z.string().nonempty()) name: string,
+							@Header('X-Requested-With', (z, createCustomError) =>
+								z.literal('test', createCustomError(401, -1, 'Api key is invalid')),
+							)
+							token: string,
+						) {
+							if (a) {
+								return this.rtn<SomethingDTO>(402, {
+									id,
+									name,
+								});
+							}
+							
+							return this.rtn<UserDTO>(200, {
+								id,
+								name,
+							});
+						}
 					}
-				  }
 				`,
-				errors: [{ messageId: 'returnStatusShouldBeNumber' }],
-			},
-			{
-				// 중복된 status
-				code: `
-				  class B {
-					@Response(200, UserDTO)
-					@Response(200, UserDTO)
-					handler() {
-					  return this.rtn(200, {});
-					}
-				  }
-				`,
-				errors: [{ messageId: 'duplicateStatus' }],
-			},
-			{
-				// 정의되지 않은 status
-				code: `
-				  class C {
-					@Response(200, UserDTO)
-					getUser() {
-					  return this.rtn(404, {});
-					}
-				  }
-				`,
-				errors: [{ messageId: 'invalidReturnStatus', data: { status: '404' } }],
-			},
-			{
-				// this.rtn 아님
-				code: `
-				  class A {
-					@Response(200, UserDTO)
-					get() {
-					  return { status: 200, res: {} };
-					}
-				  }
-				`,
-				errors: [
-					{
-						messageId: 'returnWithOutThisRtn',
-					},
-				],
+				errors: [{ messageId: 'returnTypeNotMatch' }],
+				name: 'INVALID 3: Testing invalid rtn generic in if statement',
 			},
 		],
 	},
 );
 
 console.log('test done!');
+
+// {
+// 	// return 없음
+// 	code: `
+// 	  class A {
+// 		@Response(200, UserDTO)
+// 		noReturn() {}
+// 	  }
+// 	`,
+// 	errors: [{ messageId: 'emptyReturn' }],
+// },

@@ -1,10 +1,10 @@
 import { makeSchema } from '@/oapif/model/Schema';
 
-class UserDTO extends makeSchema((z) => {
+class SomethingDTO extends makeSchema((z) => {
 	return z.object({
 		id: z.string().uuid(),
 		name: z.string().min(1),
 	});
 }) {}
 
-export default UserDTO;
+export default SomethingDTO;

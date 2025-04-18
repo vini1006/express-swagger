@@ -47,7 +47,18 @@ const castReturnType = (
 		}
 
 		return z.union(
-			arr as unknown as readonly [ZodTypeAny, ZodTypeAny, ...ZodTypeAny[]],
+			arr.filter((r) => {
+				if (r instanceof ViewRenderer) {
+					throw new Error('Other than zod type cannot be here');
+				}
+
+				// check if r is ZodType
+				if (!(r instanceof z.ZodType)) {
+					throw new Error('Other than zod type cannot be here');
+				}
+
+				return true;
+			}) as unknown as readonly [ZodTypeAny, ZodTypeAny, ...ZodTypeAny[]],
 		);
 	})(arg);
 };

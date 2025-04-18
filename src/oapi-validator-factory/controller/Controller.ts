@@ -1,10 +1,11 @@
+import type ASchema from '@/oapif/model/Schema';
 import type { ViewRenderer } from '@/oapif/model/ViewRenderer';
 
 type AbstractControllerConstructorArgs = [];
 
-type ControllerReturnType<T extends ViewRenderer | unknown = unknown> = {
+type ControllerReturnType = {
 	status: number;
-	res: T;
+	res: ViewRenderer | ASchema;
 };
 
 export const isControllerReturnType = (
@@ -19,11 +20,23 @@ export const isControllerReturnType = (
 	);
 };
 
+type ValidateControllerReturnVal<T = void> = T extends ASchema
+	? ASchema['type']
+	: T extends ViewRenderer
+		? ViewRenderer
+		: 'Define Generic Return Type from one of the following @Response types: ASchema | ViewRenderer';
+
 abstract class Controller {
-	protected rtn<T = void, U extends T = T>(status: number, val: U) {
+	protected rtn<T = void, U extends T = T>(
+		status: number,
+		_val: ValidateControllerReturnVal<U>,
+	): {
+		status: number;
+		res: ValidateControllerReturnVal<U>;
+	} {
 		return {
 			status,
-			res: val,
+			res: _val as U extends ASchema ? ASchema['type'] : never,
 		};
 	}
 }

@@ -1,4 +1,6 @@
-import UserDTO, { type UserDtoType } from '@/dto/UserDTO';
+import type SomethingDTO from '@/dto/SomethingDTO';
+import TestDTO from '@/dto/TestDTO';
+import UserDTO from '@/dto/UserDTO';
 
 import {
 	BasePath,
@@ -15,7 +17,7 @@ import { ViewRenderer } from '@/oapif/model/ViewRenderer';
 @BasePath('/user')
 class UserController extends Controller {
 	@Get('/get/:id')
-	@Response(200, UserDTO)
+	@Response(200, [UserDTO.z, TestDTO.z])
 	@Response(402, ViewRenderer)
 	getUser(
 		@Param('id', (z) => z.string().nonempty()) id: string,
@@ -25,9 +27,9 @@ class UserController extends Controller {
 		)
 		token: string,
 	) {
-		return this.rtn<UserDtoType>(201, {
-			id,
-			name,
+		return this.rtn(200, {
+			id: '1234',
+			name: '12344',
 		});
 	}
 }

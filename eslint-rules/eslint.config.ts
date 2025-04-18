@@ -5,6 +5,7 @@ import { validateResponse } from './src/rules/validate-response';
 export default defineConfig([
 	{
 		files: ['**/*.ts'],
+		ignores: ['**/node_modules/', '.git/'],
 		languageOptions: {
 			parser: tsParser,
 		},
