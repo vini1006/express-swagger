@@ -150,6 +150,7 @@ function collectMethodResponseDecorators(
 					});
 					break;
 				}
+				case AST_NODE_TYPES.MemberExpression:
 				case AST_NODE_TYPES.Identifier: {
 					responseInfo.push({
 						status,

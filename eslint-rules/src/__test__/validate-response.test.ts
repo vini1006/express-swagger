@@ -1,12 +1,12 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 import type { RuleModule } from '@typescript-eslint/utils/ts-eslint';
-import { validateResponse } from '../rules/validate-response';
+import { rule } from '../rules/validate-response';
 
 const ruleTester = new RuleTester();
 
 ruleTester.run(
 	'validate-response',
-	validateResponse as unknown as RuleModule<
+	rule as unknown as RuleModule<
 		| 'duplicateStatus'
 		| 'invalidReturnStatus'
 		| 'emptyReturn'
