@@ -2,10 +2,6 @@ import { type ZodTypeAny, z as zod } from 'zod';
 
 type InferZodSchema<T extends ZodTypeAny> = zod.infer<T>;
 
-type InferASchemaAttribute<T> = T extends ASchema<ZodTypeAny, infer A>
-	? A
-	: never;
-
 abstract class ASchema<
 	T extends ZodTypeAny = ZodTypeAny,
 	A = InferZodSchema<T>,
