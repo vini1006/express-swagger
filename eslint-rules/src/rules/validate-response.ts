@@ -1,38 +1,29 @@
-import type {
-	LanguageOptions,
-	RuleContext,
-	RuleDefinition,
-	SourceCode,
-} from '@eslint/core';
-import type { TSESTree } from '@typescript-eslint/utils';
+import {
+	AST_NODE_TYPES,
+	ESLintUtils,
+	type TSESTree,
+} from '@typescript-eslint/utils';
 
-/** Types **/
+import type { RuleContext } from '@typescript-eslint/utils/ts-eslint';
+
 type ResponseInfo = {
 	status: number;
-	type: string[];
 	decorator: TSESTree.Decorator;
+	type: string[];
 };
 
-type Context = RuleContext<{
-	LangOptions: LanguageOptions;
-	Code: SourceCode<{
-		LangOptions: LanguageOptions;
-		RootNode: unknown;
-		SyntaxElementWithLoc: unknown;
-		ConfigNode: unknown;
-	}>;
-	RuleOptions: unknown[];
-	Node: unknown;
-	MessageIds: string;
-}>;
+type MethodResponseMap = WeakMap<TSESTree.MethodDefinition, ResponseInfo[]>;
+type ReturnMethodMap = WeakMap<
+	TSESTree.ReturnStatement,
+	TSESTree.MethodDefinition
+>;
+const createRule = ESLintUtils.RuleCreator(() => '');
 
-/** Rule Definition **/
-export const validateResponse: RuleDefinition = {
+export const rule = createRule({
+	name: 'opai-validator-factory-response',
 	meta: {
-		type: 'problem',
 		docs: {
 			description: 'Ensures that @Response decorators and return types match',
-			recommended: false,
 		},
 		messages: {
 			duplicateStatus: 'Duplicate @Response for status {{status}}.',
@@ -41,285 +32,366 @@ export const validateResponse: RuleDefinition = {
 			emptyReturn:
 				'Return statement is empty, but @Response decorators are defined.',
 			returnWithOutThisRtn:
-				'Return must be in the form: return this.rtn(status, res)',
-			returnStatusShouldBeNumber:
-				'First argument to this.rtn must be a numeric status code',
+				'Return must be in the form: return this.rtn<T>(status, res)',
+			returnWithoutThisRtnGeneric:
+				'Must use generic type for this.rtn<T>(status, res)',
 			returnTypeNotMatch:
 				"Generic type '{{generic}}' does not match any of expected type '{{expected}}' for status {{status}}.",
 		},
-		language: 'typescript',
+		type: 'layout',
+		schema: [],
 	},
-
+	defaultOptions: [],
 	create(context) {
-		const methodResponseMap = new WeakMap<
-			TSESTree.MethodDefinition,
-			ResponseInfo[]
-		>();
-		const statusTypeCache = new WeakMap<
-			TSESTree.MethodDefinition,
-			Map<number, string[]>
-		>();
-		const returnToMethodMap = new WeakMap<
-			TSESTree.ReturnStatement,
-			TSESTree.MethodDefinition
-		>();
+		const methodResponseMap: MethodResponseMap = new WeakMap();
+		const returnMethodMap: ReturnMethodMap = new WeakMap();
 
 		return {
 			ClassDeclaration(classNode) {
-				try {
-					// @ts-ignore
-					const hasBasePath = classNode.decorators?.some((decorator) => {
-						return (
-							decorator.expression.type === 'CallExpression' &&
-							decorator.expression.callee.type === 'Identifier' &&
-							decorator.expression.callee.name === 'BasePath'
-						);
-					});
-					if (!hasBasePath) return;
+				if (!isControllerClassNode(classNode)) {
+					return;
+				}
 
-					for (const element of classNode.body.body) {
-						if (
-							element.type !== 'MethodDefinition' ||
-							element.kind !== 'method'
-						)
-							continue;
-
-						const responses = extractResponseDecorators(element);
-						if (responses.length > 0) {
-							methodResponseMap.set(element, responses);
-							reportDuplicateStatuses(context, responses);
-
-							const statusMap = new Map<number, string[]>();
-							for (const { status, type } of responses) {
-								statusMap.set(
-									status,
-									type.map((el) =>
-										el === 'ViewRenderer' ? 'ViewRenderer' : el.split('.')[0],
-									),
-								);
-							}
-							statusTypeCache.set(element, statusMap);
-
-							const body = element.value.body;
-							if (body) {
-								collectReturnStatements(body, (ret) => {
-									returnToMethodMap.set(ret, element);
-								});
-							}
-						}
+				for (const el of classNode.body.body) {
+					if (el.type !== 'MethodDefinition' || el.kind !== 'method') {
+						continue;
 					}
-				} catch (error) {
-					console.error(error);
+
+					collectMethodResponseDecorators(el, methodResponseMap);
+					collectMethodReturnStatements(el, returnMethodMap);
 				}
 			},
 			ReturnStatement(returnNode) {
-				try {
-					const methodNode = returnToMethodMap.get(returnNode);
-					if (!methodNode) return;
-
-					const expectedMap = statusTypeCache.get(methodNode);
-					if (!expectedMap) return;
-
-					validateReturnFormat(context, returnNode, expectedMap);
-				} catch (error) {
-					console.error(error);
+				const methodDefinition = returnMethodMap.get(returnNode);
+				if (!methodDefinition) {
+					return;
 				}
+
+				const isEmptyReturn = _isEmptyReturn(
+					context,
+					methodDefinition,
+					methodResponseMap,
+					returnNode,
+					false,
+				);
+
+				const isUsingInvalidReturnFn = _isUsingInvalidReturnFn(
+					context,
+					returnNode,
+					isEmptyReturn,
+				);
+
+				if (isUsingInvalidReturnFn) {
+					return;
+				}
+
+				_isInvalidReturn(
+					context,
+					methodDefinition,
+					methodResponseMap,
+					returnNode,
+					isUsingInvalidReturnFn,
+				);
 			},
 		};
 	},
-};
+});
 
-/** Utilities **/
-function collectReturnStatements(
-	node: TSESTree.Node,
-	onReturn: (stmt: TSESTree.ReturnStatement) => void,
-	visited = new Set<TSESTree.Node>(),
-): void {
-	if (visited.has(node)) return;
-	visited.add(node);
-
-	if (node.type === 'ReturnStatement') {
-		onReturn(node);
-		return;
-	}
-
-	for (const key in node) {
-		if (!Object.prototype.hasOwnProperty.call(node, key)) continue;
-
-		//@ts-ignore
-		const value = node[key];
-
-		if (Array.isArray(value)) {
-			for (const child of value) {
-				if (child && typeof child.type === 'string') {
-					collectReturnStatements(child, onReturn, visited);
-				}
-			}
-		} else if (
-			value &&
-			typeof value === 'object' &&
-			typeof value.type === 'string'
+function isControllerClassNode(classNode: TSESTree.ClassDeclaration) {
+	for (const decorator of classNode.decorators) {
+		if (
+			decorator.expression.type === AST_NODE_TYPES.CallExpression &&
+			decorator.expression.callee.type === AST_NODE_TYPES.Identifier &&
+			decorator.expression.callee.name === 'BasePath'
 		) {
-			collectReturnStatements(value, onReturn, visited);
+			return true;
 		}
 	}
 }
 
-function validateReturnFormat(
-	context: Context,
-	stmt: TSESTree.ReturnStatement,
-	expectedMap: Map<number, string[]>,
-): void {
-	const expr = stmt.argument;
-
-	if (!expr) {
-		context.report({ node: stmt, messageId: 'emptyReturn' });
+function collectMethodResponseDecorators(
+	methodDefinition: TSESTree.MethodDefinition,
+	methodResponseMap: MethodResponseMap,
+) {
+	if (!methodDefinition.decorators?.length) {
 		return;
 	}
 
-	if (
-		expr.type !== 'CallExpression' ||
-		expr.callee.type !== 'MemberExpression' ||
-		expr.callee.object.type !== 'ThisExpression' ||
-		expr.callee.property.type !== 'Identifier' ||
-		expr.callee.property.name !== 'rtn'
-	) {
-		context.report({ node: stmt, messageId: 'returnWithOutThisRtn' });
-		return;
-	}
-
-	const [statusArg] = expr.arguments;
-
-	if (
-		!statusArg ||
-		statusArg.type !== 'Literal' ||
-		typeof statusArg.value !== 'number'
-	) {
-		context.report({ node: stmt, messageId: 'returnStatusShouldBeNumber' });
-		return;
-	}
-
-	const status = statusArg.value;
-	const expected = expectedMap.get(status) || [];
-
-	if (!expected.length) {
-		context.report({
-			node: statusArg,
-			messageId: 'invalidReturnStatus',
-			data: { status: `${status}` },
-		});
-		return;
-	}
-
-	const typeParams = expr.typeArguments;
-	if (
-		typeParams &&
-		typeParams.type === 'TSTypeParameterInstantiation' &&
-		typeParams.params.length > 0
-	) {
-		const typeNode = typeParams.params[0];
-
+	const responseInfo: ResponseInfo[] = [];
+	for (const decorator of methodDefinition.decorators) {
 		if (
-			typeNode.type === 'TSTypeReference' &&
-			typeNode.typeName.type === 'Identifier'
-		) {
-			const generic = typeNode.typeName.name;
-			if (!expected.includes(generic)) {
-				context.report({
-					node: typeParams,
-					messageId: 'returnTypeNotMatch',
-					data: {
-						generic,
-						expected: expected.join(', '),
-						status: `${status}`,
-					},
-				});
-			}
-		}
-	}
-}
-
-function extractResponseDecorators(
-	node: TSESTree.MethodDefinition,
-): ResponseInfo[] {
-	if (!node.decorators) return [];
-
-	const responses: ResponseInfo[] = [];
-
-	for (const decorator of node.decorators) {
-		if (
-			decorator.expression.type === 'CallExpression' &&
-			decorator.expression.callee.type === 'Identifier' &&
+			decorator.expression.type === AST_NODE_TYPES.CallExpression &&
+			decorator.expression.callee.type === AST_NODE_TYPES.Identifier &&
 			decorator.expression.callee.name === 'Response'
 		) {
 			const args = decorator.expression.arguments;
-			if (args.length !== 2) continue;
-
-			const [statusArg, typeArg] = args;
-			if (statusArg.type !== 'Literal' || typeof statusArg.value !== 'number')
+			if (args.length < 2) {
 				continue;
-
-			let typeName: string[] | undefined;
-
-			if (typeArg.type === 'Identifier') {
-				typeName = [typeArg.name];
-			} else if (typeArg.type === 'ArrayExpression') {
-				typeName = [];
-				for (const el of typeArg.elements) {
-					if (
-						el?.type === 'MemberExpression' &&
-						isValidMemberExpressionType(el)
-					) {
-						typeName.push(`${el.object.name}`);
-					}
-				}
-			} else if (isValidMemberExpressionType(typeArg)) {
-				typeName = [`${typeArg.object.name}`];
 			}
 
-			if (typeName?.length) {
-				responses.push({ status: statusArg.value, type: typeName, decorator });
+			if (args[0].type !== AST_NODE_TYPES.Literal) {
+				continue;
+			}
+
+			const status = Number.parseInt(args[0]!.value as string, 10);
+			const rtnType = args[1];
+
+			switch (rtnType.type) {
+				case AST_NODE_TYPES.ArrayExpression: {
+					const arr: string[] = [];
+					for (const el of rtnType.elements) {
+						pushToRtnNameList(el, arr);
+					}
+
+					responseInfo.push({
+						status,
+						type: arr,
+						decorator: decorator,
+					});
+					break;
+				}
+				case AST_NODE_TYPES.Identifier: {
+					responseInfo.push({
+						status,
+						type: pushToRtnNameList(rtnType),
+						decorator: decorator,
+					});
+					break;
+				}
 			}
 		}
 	}
 
-	return responses;
+	methodResponseMap.set(methodDefinition, responseInfo);
 
-	function isValidMemberExpressionType(
-		typeArg: unknown,
-	): typeArg is { object: { name: string } } {
-		return (
-			typeof typeArg === 'object' &&
-			typeArg !== null &&
-			'type' in typeArg &&
-			typeArg.type === 'MemberExpression' &&
-			'property' in typeArg &&
-			typeof typeArg.property === 'object' &&
-			typeArg.property !== null &&
-			'name' in typeArg.property &&
-			typeArg.property.name === 'z' &&
-			'object' in typeArg &&
-			typeof typeArg.object === 'object' &&
-			typeArg.object !== null &&
-			'name' in typeArg.object
-		);
+	function pushToRtnNameList(
+		el:
+			| TSESTree.Expression
+			| TSESTree.SpreadElement
+			| TSESTree.Identifier
+			| null,
+		list: string[] = [],
+	) {
+		if (!el) {
+			return list;
+		}
+
+		if (
+			el.type === AST_NODE_TYPES.MemberExpression &&
+			el.object.type === AST_NODE_TYPES.Identifier
+		) {
+			list.push(el.object.name);
+		}
+
+		if (el.type === AST_NODE_TYPES.Identifier) {
+			list.push(el.name);
+		}
+
+		return list;
 	}
 }
 
-function reportDuplicateStatuses(
-	context: Context,
-	responses: ResponseInfo[],
-): void {
-	const statusMap = new Map<number, TSESTree.Decorator>();
-	for (const res of responses) {
-		if (statusMap.has(res.status)) {
-			context.report({
-				node: res.decorator,
-				messageId: 'duplicateStatus',
-				data: { status: `${res.status}` },
-			});
-		} else {
-			statusMap.set(res.status, res.decorator);
+function collectMethodReturnStatements(
+	methodDefinition: TSESTree.MethodDefinition,
+	returnMethodMap: ReturnMethodMap,
+) {
+	if (!methodDefinition.value.body) {
+		return;
+	}
+
+	for (const stmt of methodDefinition.value.body?.body || []) {
+		traverseReturnNode(methodDefinition, stmt, returnMethodMap);
+	}
+
+	function traverseReturnNode(
+		methodDefinition: TSESTree.MethodDefinition,
+		stmt: TSESTree.Statement | null | undefined,
+		returnMethodMap: ReturnMethodMap,
+	) {
+		if (!stmt) {
+			return;
+		}
+
+		switch (stmt.type) {
+			case AST_NODE_TYPES.ReturnStatement: {
+				returnMethodMap.set(stmt, methodDefinition);
+				return;
+			}
+			case AST_NODE_TYPES.BlockStatement: {
+				for (const innerStmt of stmt.body) {
+					traverseReturnNode(methodDefinition, innerStmt, returnMethodMap);
+				}
+				return;
+			}
+			case AST_NODE_TYPES.IfStatement: {
+				const { consequent, alternate } = stmt;
+				traverseReturnNode(methodDefinition, consequent, returnMethodMap);
+				traverseReturnNode(methodDefinition, alternate, returnMethodMap);
+				return;
+			}
+			case AST_NODE_TYPES.SwitchStatement: {
+				const { cases } = stmt;
+				for (const caseStmt of cases) {
+					for (const caseBody of caseStmt.consequent) {
+						traverseReturnNode(methodDefinition, caseBody, returnMethodMap);
+					}
+				}
+				return;
+			}
+			case AST_NODE_TYPES.WhileStatement: {
+				const { body } = stmt;
+				traverseReturnNode(methodDefinition, body, returnMethodMap);
+				return;
+			}
 		}
 	}
+}
+
+function _isEmptyReturn(
+	context: RuleContext<string, unknown[]>,
+	methodDefinition: TSESTree.MethodDefinition,
+	methodResponseMap: MethodResponseMap,
+	returnNode: TSESTree.ReturnStatement,
+	stop: boolean,
+): boolean {
+	if (stop) {
+		return false;
+	}
+
+	const responseInfoList = methodResponseMap.get(methodDefinition);
+	if (!responseInfoList?.length) {
+		context.report({
+			node: methodDefinition,
+			messageId: 'emptyReturn',
+		});
+
+		return true;
+	}
+
+	if (returnNode.argument === null) {
+		context.report({
+			node: returnNode,
+			messageId: 'emptyReturn',
+		});
+
+		return true;
+	}
+
+	return false;
+}
+
+function _isUsingInvalidReturnFn(
+	context: RuleContext<string, unknown[]>,
+	returnNode: TSESTree.ReturnStatement,
+	stop: boolean,
+): boolean {
+	if (stop) {
+		return false;
+	}
+
+	if (
+		!returnNode.argument ||
+		returnNode.argument.type !== AST_NODE_TYPES.CallExpression ||
+		returnNode.argument.callee.type !== AST_NODE_TYPES.MemberExpression ||
+		returnNode.argument.callee.object.type !== AST_NODE_TYPES.ThisExpression ||
+		returnNode.argument.callee.property.type !== AST_NODE_TYPES.Identifier ||
+		returnNode.argument.callee.property.name !== 'rtn'
+	) {
+		context.report({
+			node: returnNode,
+			messageId: 'returnWithOutThisRtn',
+		});
+		return true;
+	}
+
+	return false;
+}
+
+function _isInvalidReturn(
+	context: RuleContext<string, unknown[]>,
+	methodDefinition: TSESTree.MethodDefinition,
+	methodResponseMap: MethodResponseMap,
+	returnNode: TSESTree.ReturnStatement,
+	stop: boolean,
+): boolean {
+	if (stop) {
+		return false;
+	}
+
+	if (
+		!returnNode.argument ||
+		returnNode.argument.type !== AST_NODE_TYPES.CallExpression ||
+		!returnNode.argument?.arguments?.[0] ||
+		!returnNode.argument?.arguments?.[1]
+	) {
+		return false;
+	}
+
+	const statusArg =
+		returnNode.argument &&
+		returnNode.argument.type === AST_NODE_TYPES.CallExpression &&
+		returnNode.argument?.arguments?.[0];
+
+	if (
+		!statusArg ||
+		statusArg.type !== AST_NODE_TYPES.Literal ||
+		Number.isNaN(statusArg.value)
+	) {
+		return true;
+	}
+
+	const responseInfoList = methodResponseMap.get(methodDefinition)!;
+	const statusMatchedReturn = responseInfoList.find(
+		(s) => s.status === statusArg.value,
+	);
+
+	if (!statusMatchedReturn) {
+		context.report({
+			node: returnNode,
+			messageId: 'invalidReturnStatus',
+		});
+
+		return true;
+	}
+
+	const typeGeneric = returnNode.argument.typeArguments?.params?.[0];
+	if (!typeGeneric) {
+		context.report({
+			node: returnNode,
+			messageId: 'returnWithoutThisRtnGeneric',
+		});
+
+		return true;
+	}
+
+	const typeGenericName =
+		typeGeneric.type === AST_NODE_TYPES.TSTypeReference &&
+		typeGeneric.typeName.type === AST_NODE_TYPES.Identifier &&
+		typeGeneric.typeName.name;
+
+	if (!typeGenericName) {
+		context.report({
+			node: returnNode,
+			messageId: 'returnWithoutThisRtnGeneric',
+		});
+
+		return true;
+	}
+
+	const expected = statusMatchedReturn.type;
+	if (!expected.includes(typeGenericName)) {
+		context.report({
+			node: typeGeneric,
+			messageId: 'returnTypeNotMatch',
+			data: {
+				generic: typeGenericName,
+				expected: expected.join(', '),
+				status: statusArg.value,
+			},
+		});
+
+		return true;
+	}
+
+	return false;
 }

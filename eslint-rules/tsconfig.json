@@ -15,5 +15,5 @@
     "strict": true,
     "skipLibCheck": true,
   },
-  "include": ["./src/**/*", "eslint.config.ts"],
+  "include": ["./**/*"],
 }

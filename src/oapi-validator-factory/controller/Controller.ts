@@ -24,7 +24,7 @@ type ValidateControllerReturnVal<T = void> = T extends ASchema
 	? ASchema['type']
 	: T extends ViewRenderer
 		? ViewRenderer
-		: 'Define Generic Return Type from one of the following @Response types: ASchema | ViewRenderer';
+		: '!! Empty this.rtn Generic !! Define Generic Return Type from one of the following @Response types: ASchema | ViewRenderer';
 
 abstract class Controller {
 	protected rtn<T = void, U extends T = T>(

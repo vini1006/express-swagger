@@ -5,7 +5,8 @@
 	"scripts": {
 		"dev": "bun run --watch src/app.ts",
 		"biome:check": "biome check --write",
-		"eslint-rule:test": "bun test --testPathPattern=eslint-rule"
+		"eslint-rule:test": "bun test --testPathPattern=eslint-rule",
+		"eslint": "npx eslint ."
 	},
 	"type": "commonjs",
 	"keywords": [],
@@ -23,7 +24,8 @@
 		"bun": "latest",
 		"eslint": "^9.24.0",
 		"jiti": "^2.4.2",
-		"typescript": "^5.8.3"
+		"typescript": "^5.8.3",
+		"typescript-eslint": "^8.30.1"
 	},
 	"dependencies": {
 		"@typescript-eslint/rule-tester": "^8.30.1",
