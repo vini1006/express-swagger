@@ -1,4 +1,6 @@
-import Controller from '@/oapif/controller/Controller';
+import Controller, {
+	type ControllerConstructor,
+} from '@/oapif/controller/Controller';
 import type { HttpMethod } from '@/oapif/controller/enums';
 import { defineControllerRoutesMetaData } from '@/oapif/reflect-metadata/controller';
 
@@ -14,10 +16,13 @@ function createMethodDecorator(method: HttpMethod) {
 				);
 			}
 
-			defineControllerRoutesMetaData(target, {
-				method,
-				path,
-				handlerName: propertyKey as string,
-			});
+			defineControllerRoutesMetaData(
+				target.constructor as ControllerConstructor,
+				{
+					method,
+					path,
+					handlerName: propertyKey as string,
+				},
+			);
 		};
 }

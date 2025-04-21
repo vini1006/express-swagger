@@ -6,16 +6,10 @@ export class ViewRenderer {
 	constructor(
 		public filePath: string,
 		public data: Record<string, unknown>,
+		public description?: string,
 	) {}
 
 	static render(res: Response, viewRenderer: ViewRenderer) {
 		res.render(viewRenderer.filePath, viewRenderer.data);
 	}
 }
-
-export const createViewRenderer = (
-	filePath: string,
-	data: Record<string, unknown>,
-) => {
-	return new ViewRenderer(filePath, data);
-};

@@ -18,6 +18,7 @@ import { ViewRenderer } from '@/oapif/model/ViewRenderer';
 class UserController extends Controller {
 	@Get('/get/:id')
 	@Response(200, [UserDTO.z, TestDTO.z])
+	@Response(201, UserDTO.z)
 	@Response(402, ViewRenderer)
 	getUser(
 		@Param('id', (z) => z.string().nonempty()) id: string,
@@ -27,7 +28,16 @@ class UserController extends Controller {
 		)
 		token: string,
 	) {
-		return this.rtn(200, {
+		if (false) {
+			return this.rtn<ViewRenderer>(
+				402,
+				new ViewRenderer('text/html', {
+					a: 3,
+				}),
+			);
+		}
+
+		return this.rtn<UserDTO>(201, {
 			id: '1234',
 			name: '12344',
 		});

@@ -1,5 +1,5 @@
+import type { ZodError, ZodTypeAny } from '@/oapif/adapter/zod';
 import express, { type Request, type Response } from 'express';
-import type { ZodError, ZodTypeAny } from 'zod';
 
 import {
 	extractCustomErrorResponseMessage,
@@ -11,7 +11,7 @@ import { tryCatchWrapper } from '@/oapif/utils';
 import type { InvalidParamHandler } from '@/oapif/type';
 
 import {
-	findControllerResponseMetaData,
+	findControllerResponseMetaDataWithStatus,
 	getBasePathMetaData,
 	getControllerRouteParamsMetaData,
 	getControllerRoutesMetaData,
@@ -35,7 +35,10 @@ export const registerControllers = (
 		const router = express.Router();
 		const instance = new ControllerClass();
 
-		const routeMetaList = getControllerRoutesMetaData(instance) || [];
+		const routeMetaList =
+			getControllerRoutesMetaData(
+				instance.constructor as ControllerConstructor,
+			) || [];
 		for (const routeMeta of routeMetaList) {
 			router[routeMeta.method](routeMeta.path, async (req, res) => {
 				const [args, castError] = tryCatchWrapper(() =>
@@ -83,7 +86,9 @@ export const registerControllers = (
 			});
 		}
 
-		const basePath = getBasePathMetaData(instance);
+		const basePath = getBasePathMetaData(
+			instance.constructor as ControllerConstructor,
+		);
 		app.use(basePath, router);
 	}
 };
@@ -107,8 +112,8 @@ const handleControllerHandler = async (
 		);
 	}
 
-	const responseMeta = findControllerResponseMetaData(
-		instance,
+	const responseMeta = findControllerResponseMetaDataWithStatus(
+		instance.constructor as ControllerConstructor,
 		handlerName,
 		result.status,
 	);
@@ -148,7 +153,10 @@ const createControllerParameters = (
 	handlerName: string,
 ) => {
 	const paramsMeta =
-		getControllerRouteParamsMetaData(instance, handlerName) || [];
+		getControllerRouteParamsMetaData(
+			instance.constructor as ControllerConstructor,
+			handlerName,
+		) || [];
 
 	const args: unknown[] = [];
 

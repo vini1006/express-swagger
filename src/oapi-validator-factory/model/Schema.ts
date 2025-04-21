@@ -1,4 +1,4 @@
-import { type ZodTypeAny, z as zod } from 'zod';
+import { type ZodTypeAny, z as zod } from '@/oapif/adapter/zod';
 
 type InferZodSchema<T extends ZodTypeAny> = zod.infer<T>;
 

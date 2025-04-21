@@ -1,8 +1,10 @@
 import { castArray, flattenDeep, pipe } from 'lodash/fp';
-import { z } from 'zod';
-import type { ZodTypeAny } from 'zod/lib/types';
 
-import Controller from '@/oapif/controller/Controller';
+import { type ZodTypeAny, z } from '@/oapif/adapter/zod';
+
+import Controller, {
+	type ControllerConstructor,
+} from '@/oapif/controller/Controller';
 
 import { ViewRenderer } from '@/oapif/model/ViewRenderer';
 
@@ -23,10 +25,14 @@ export const Response = (
 			);
 		}
 
-		defineControllerResponseMetaData(target, methodName as string, {
-			statusCode,
-			returnType: castReturnType(returnType),
-		});
+		defineControllerResponseMetaData(
+			target.constructor as ControllerConstructor,
+			methodName as string,
+			{
+				statusCode,
+				returnType: castReturnType(returnType),
+			},
+		);
 	};
 };
 

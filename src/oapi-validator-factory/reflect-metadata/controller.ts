@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 
-import type { ZodType, ZodTypeAny } from 'zod';
+import type { ZodType, ZodTypeAny } from '@/oapif/adapter/zod';
 
-import type Controller from '@/oapif/controller/Controller';
+import type { ControllerConstructor } from '@/oapif/controller/Controller';
 
 import type { HttpMethod, ParamSource } from '@/oapif/controller/enums';
 import type { ViewRenderer } from '@/oapif/model/ViewRenderer';
@@ -34,34 +34,36 @@ type ResponseMeta = {
 
 export const defineBasePathMetaData = (
 	basePath: RouteBasePath,
-	target: Controller,
+	target: ControllerConstructor,
 ) => {
 	Reflect.defineMetadata(BASE_PATH_META, basePath, target);
 };
 
-export const getBasePathMetaData = (controller: Controller): RouteBasePath => {
-	return Reflect.getMetadata(BASE_PATH_META, controller.constructor);
+export const getBasePathMetaData = (
+	controller: ControllerConstructor,
+): RouteBasePath => {
+	return Reflect.getMetadata(BASE_PATH_META, controller);
 };
 
 export const defineControllerRoutesMetaData = (
-	target: Controller,
+	controller: ControllerConstructor,
 	meta: RouteMeta,
 ) => {
-	const existingRoutes =
-		Reflect.getMetadata(ROUTES_META, target.constructor) || [];
+	const existingRoutes = Reflect.getMetadata(ROUTES_META, controller) || [];
 
 	existingRoutes.push(meta);
 
-	Reflect.defineMetadata(ROUTES_META, existingRoutes, target.constructor);
+	Reflect.defineMetadata(ROUTES_META, existingRoutes, controller);
 };
 
-export const getControllerRoutesMetaData = (controller: Controller) => {
-	return (Reflect.getMetadata(ROUTES_META, controller.constructor) ||
-		[]) as RouteMeta[];
+export const getControllerRoutesMetaData = (
+	controller: ControllerConstructor,
+) => {
+	return (Reflect.getMetadata(ROUTES_META, controller) || []) as RouteMeta[];
 };
 
 export const defineControllerRouteParamMetaData = (
-	target: Controller,
+	target: ControllerConstructor,
 	handlerName: string,
 	parameterMeta: ParameterMeta,
 ) => {
@@ -79,7 +81,7 @@ export const defineControllerRouteParamMetaData = (
 };
 
 export const getControllerRouteParamsMetaData = (
-	controller: Controller,
+	controller: ControllerConstructor,
 	handlerName: string,
 ) => {
 	return (Reflect.getMetadata(PARAMS_META, controller, handlerName) ||
@@ -87,7 +89,7 @@ export const getControllerRouteParamsMetaData = (
 };
 
 export const defineControllerResponseMetaData = (
-	target: Controller,
+	target: ControllerConstructor,
 	handlerName: string,
 	meta: ResponseMeta,
 ) => {
@@ -99,18 +101,18 @@ export const defineControllerResponseMetaData = (
 	Reflect.defineMetadata(RESPONSE_META, existingMeta, target, handlerName);
 };
 
-export const findControllerResponseMetaData = (
-	target: Controller,
+export const findControllerResponseMetaDataWithStatus = (
+	target: ControllerConstructor,
 	handlerName: string,
 	statusCode: ResponseMeta['statusCode'],
 ) => {
-	return getControllerResponseMetaData(target, handlerName)?.find(
+	return getAllControllerResponseMetaData(target, handlerName)?.find(
 		(meta) => meta.statusCode === statusCode,
 	);
 };
 
-const getControllerResponseMetaData = (
-	target: Controller,
+export const getAllControllerResponseMetaData = (
+	target: ControllerConstructor,
 	handlerName: string,
 ) => {
 	return Reflect.getMetadata(

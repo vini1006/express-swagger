@@ -1,6 +1,8 @@
-import { type ZodTypeAny, z as zod } from 'zod';
+import { type ZodTypeAny, z as zod } from '@/oapif/adapter/zod';
 
-import Controller from '@/oapif/controller/Controller';
+import Controller, {
+	type ControllerConstructor,
+} from '@/oapif/controller/Controller';
 import type { ParamSource } from '@/oapif/controller/enums';
 
 import { createCustomErrorResponseMessage } from '@/oapif/adapter/zod';
@@ -27,11 +29,15 @@ function createParamDecorator(source: ParamSource) {
 				);
 			}
 
-			defineControllerRouteParamMetaData(target, methodName as string, {
-				index: parameterIndex,
-				source,
-				key: paramKey,
-				validator: validator(zod, createCustomErrorResponseMessage),
-			});
+			defineControllerRouteParamMetaData(
+				target.constructor as ControllerConstructor,
+				methodName as string,
+				{
+					index: parameterIndex,
+					source,
+					key: paramKey,
+					validator: validator(zod, createCustomErrorResponseMessage),
+				},
+			);
 		};
 }

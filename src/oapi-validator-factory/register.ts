@@ -4,17 +4,25 @@ import {
 	type ControllerConstructor,
 	registerControllers,
 } from '@/oapif/controller';
+import type { SwaggerConfig } from '@/oapif/swagger/config';
+import { registerSwaggerDoc } from '@/oapif/swagger/register';
 import type { InvalidParamHandler } from '@/oapif/type';
 
 type ServerRegisterConfig = {
-	controllers: ControllerConstructor[];
 	mode: 'dev' | 'live';
 	commonInvalidParamResponse?: InvalidParamHandler;
 };
 
-export const registerRouter = (
-	app: express.Express,
-	{ controllers, commonInvalidParamResponse }: ServerRegisterConfig,
-) => {
-	registerControllers(app, controllers, commonInvalidParamResponse);
+export const registerRouter = (config: {
+	app: express.Express;
+	controllers: ControllerConstructor[];
+	serverRegisterConfig: ServerRegisterConfig;
+	swaggerConfig: SwaggerConfig;
+}) => {
+	registerControllers(
+		config.app,
+		config.controllers,
+		config.serverRegisterConfig.commonInvalidParamResponse,
+	);
+	registerSwaggerDoc(config.swaggerConfig, config.controllers);
 };

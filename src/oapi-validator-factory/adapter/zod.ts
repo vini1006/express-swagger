@@ -1,3 +1,14 @@
+import { ZodError, ZodType, type ZodTypeAny, z } from 'zod';
+import {
+	createDocument as createZodSwaggerDocument,
+	extendZodWithOpenApi,
+} from 'zod-openapi';
+
+extendZodWithOpenApi(z);
+
+export type { ZodTypeAny };
+export { z, ZodError, ZodType, createZodSwaggerDocument };
+
 const START = '__custom' as const;
 const DELIMITER = '::' as const;
 

@@ -9,15 +9,25 @@ const PORT = 8080;
 
 app.set('views', `${__dirname}/views`).set('view engine', 'ejs');
 
-registerRouter(app, {
+registerRouter({
+	app,
 	controllers: [UserController],
-	mode: 'dev',
-	commonInvalidParamResponse: (errMessage) => {
-		return {
-			code: -1000,
-			msg: errMessage,
-			data: {},
-		};
+	serverRegisterConfig: {
+		mode: 'dev',
+		commonInvalidParamResponse: (errMessage) => {
+			return {
+				code: -1000,
+				msg: errMessage,
+				data: {},
+			};
+		},
+	},
+	swaggerConfig: {
+		swaggerVer: '3.0.1',
+		info: {
+			title: 'API Documentation',
+			version: '1.0.0',
+		},
 	},
 });
 

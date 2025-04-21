@@ -1,4 +1,6 @@
-import Controller from '@/oapif/controller/Controller';
+import Controller, {
+	type ControllerConstructor,
+} from '@/oapif/controller/Controller';
 import { defineBasePathMetaData } from '@/oapif/reflect-metadata/controller';
 
 export function BasePath(basePath: string): ClassDecorator {
@@ -9,6 +11,9 @@ export function BasePath(basePath: string): ClassDecorator {
 			);
 		}
 
-		defineBasePathMetaData(basePath, target as unknown as Controller);
+		defineBasePathMetaData(
+			basePath,
+			target as unknown as ControllerConstructor,
+		);
 	};
 }
