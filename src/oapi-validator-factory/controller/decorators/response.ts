@@ -13,6 +13,7 @@ import { defineControllerResponseMetaData } from '@/oapif/reflect-metadata/contr
 export const Response = (
 	statusCode: number,
 	returnType: ZodTypeAny | ZodTypeAny[] | typeof ViewRenderer,
+	description?: string,
 ): MethodDecorator => {
 	if (!returnType || (Array.isArray(returnType) && returnType.length === 0)) {
 		throw new Error('Response decorator requires a return type');
@@ -31,6 +32,7 @@ export const Response = (
 			{
 				statusCode,
 				returnType: castReturnType(returnType),
+				description,
 			},
 		);
 	};

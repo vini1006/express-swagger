@@ -14,22 +14,24 @@ const RESPONSE_META = 'custom:response' as const;
 
 type RouteBasePath = string;
 
-type ParameterMeta = {
+export type ParameterMeta = {
 	index: number;
 	source: ParamSource;
 	key: string;
 	validator: ZodTypeAny;
 };
 
-type RouteMeta = {
+export type RouteMeta = {
 	method: HttpMethod;
 	path: string;
 	handlerName: string;
+	description?: string;
 };
 
-type ResponseMeta = {
+export type ResponseMeta = {
 	statusCode: number;
 	returnType: ZodType | typeof ViewRenderer;
+	description?: string;
 };
 
 export const defineBasePathMetaData = (

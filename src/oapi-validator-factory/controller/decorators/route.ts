@@ -8,7 +8,7 @@ export const Get = createMethodDecorator('get');
 export const Post = createMethodDecorator('post');
 
 function createMethodDecorator(method: HttpMethod) {
-	return (path: string): MethodDecorator =>
+	return (path: string, description?: string): MethodDecorator =>
 		(target, propertyKey, descriptor) => {
 			if (!(target instanceof Controller)) {
 				throw new Error(
@@ -22,6 +22,7 @@ function createMethodDecorator(method: HttpMethod) {
 					method,
 					path,
 					handlerName: propertyKey as string,
+					description,
 				},
 			);
 		};

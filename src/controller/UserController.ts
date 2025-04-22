@@ -16,8 +16,8 @@ import { ViewRenderer } from '@/oapif/model/ViewRenderer';
 
 @BasePath('/user')
 class UserController extends Controller {
-	@Get('/get/:id')
-	@Response(200, [UserDTO.z, TestDTO.z])
+	@Get('/get/:id', 'Get user with userID')
+	@Response(200, [UserDTO.z, TestDTO.z], '200 TESTING 윤빈맘')
 	@Response(201, UserDTO.z)
 	@Response(402, ViewRenderer)
 	getUser(

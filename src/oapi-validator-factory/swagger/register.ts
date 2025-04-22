@@ -1,8 +1,14 @@
 import fs from 'node:fs';
+import _ from 'lodash/fp';
 
-import { type ZodTypeAny, createZodSwaggerDocument } from '@/oapif/adapter/zod';
+import { createZodSwaggerDocument } from '@/oapif/adapter/zod';
 
-import type { ZodOpenApiPathsObject } from 'zod-openapi/dist/create/document';
+import {
+	ZodOpenApiOperationObject,
+	ZodOpenApiParameters,
+	ZodOpenApiPathsObject,
+	ZodOpenApiRequestBodyObject,
+} from 'zod-openapi/dist/create/document';
 
 import type { ControllerConstructor } from '@/oapif/controller';
 
@@ -10,47 +16,27 @@ import type { SwaggerConfig } from './config';
 
 import { ViewRenderer } from '@/oapif/model/ViewRenderer';
 import {
+	type ParameterMeta,
+	type ResponseMeta,
+	type RouteMeta,
 	getAllControllerResponseMetaData,
 	getBasePathMetaData,
 	getControllerRoutesMetaData,
 } from '@/oapif/reflect-metadata/controller';
+import { ZodType } from 'zod';
 
 export const registerSwaggerDoc = (
 	swaggerConfig: SwaggerConfig,
 	controllers: ControllerConstructor[],
 ) => {
 	for (const controller of controllers) {
-		const basePath = getBasePathMetaData(controller);
-		const routeMetaList = getControllerRoutesMetaData(controller) || [];
-
 		const res = createZodSwaggerDocument({
 			openapi: swaggerConfig.swaggerVer,
 			info: {
 				title: swaggerConfig.info.title,
 				version: swaggerConfig.info.version,
 			},
-			paths: routeMetaList.reduce((acc: ZodOpenApiPathsObject, routeMeta) => {
-				const responseMetaList = getAllControllerResponseMetaData(
-					controller,
-					routeMeta.handlerName,
-				);
-
-				acc[`${basePath}${routeMeta.path}`] = {
-					[routeMeta.method]: {
-						operationId: routeMeta.handlerName,
-						responses: responseMetaList.reduce((acc, meta) => {
-							acc = {
-								...acc,
-								...makeResponseMeta(meta.statusCode, meta.returnType),
-							};
-							return acc;
-						}, {}),
-						parameters: [],
-					},
-				};
-
-				return acc;
-			}, {}),
+			paths: makePaths(controller),
 		});
 
 		const dirPath = './open-api-schema';
@@ -62,47 +48,99 @@ export const registerSwaggerDoc = (
 		} catch (err) {
 			console.error('Error writing swagger documentation:', err);
 		}
-
-		// for (const routeMeta of routeMetaList) {
-		// 	const path = `${basePath}${routeMeta.path}`;
-		// 	const method = routeMeta.method;
-		// 	const responseMeta = findControllerResponseMetaData(
-		// 		controller,
-		// 		routeMeta.handlerName,
-		// 	);
-		// 	// Register the Swagger doc here
-		// }
 	}
 };
 
-function makeResponseMeta(
-	status: number,
-	returnType: ZodTypeAny | typeof ViewRenderer,
-) {
-	if (returnType === ViewRenderer) {
-		return {
-			[status]: {
-				description: 'ViewRenderer',
-				content: {
-					'text/html': {
-						schema: {
-							type: 'string',
+function makePaths(controller: ControllerConstructor) {
+	const basePath = getBasePathMetaData(controller);
+	const routeMetaList = getControllerRoutesMetaData(controller) || [];
+
+	return _.pipe(
+		_.map((routeMeta: RouteMeta) => {
+			const path = `${basePath}${routeMeta.path}`;
+			const method = routeMeta.method;
+			const responseMetaList = getAllControllerResponseMetaData(
+				controller,
+				routeMeta.handlerName,
+			);
+			const parameterMetaList = getAllControllerResponseMetaData(
+				controller,
+				routeMeta.handlerName,
+			);
+
+			return [
+				path,
+				{
+					[method]: {
+						operationId: routeMeta.handlerName,
+						responses: makeResponses(responseMetaList),
+					},
+				},
+			];
+		}),
+		_.fromPairs,
+	)(routeMetaList);
+}
+
+function makeRequest(parameterMetaList: ParameterMeta[]) {
+	const result = {
+		parameters: [],
+		requestParams: {},
+		requestBody: {},
+	} as unknown as {
+		parameters: ZodOpenApiOperationObject['parameters'];
+		requestParams: ZodOpenApiOperationObject['requestParams'];
+		requestBody: ZodOpenApiOperationObject['requestBody'];
+	};
+
+	for (const paramMeta of parameterMetaList) {
+		switch (paramMeta.source) {
+			case 'query': {
+				result.parameters!.push({
+					name: paramMeta.key,
+					in: 'query',
+				});
+				break;
+			}
+			case 'param':
+			case 'body':
+			case 'header':
+		}
+	}
+}
+
+function makeResponses(responseMetaList: ResponseMeta[]) {
+	return _.pipe(
+		_.map(({ statusCode, returnType, description }: ResponseMeta) => {
+			if (returnType === ViewRenderer) {
+				return [
+					statusCode,
+					{
+						description: description || 'html page',
+						content: {
+							'text/html': {
+								schema: {
+									type: 'string',
+								},
+							},
 						},
 					},
-				},
-			},
-		};
-		// biome-ignore lint/style/noUselessElse: <explanation>
-	} else {
-		return {
-			[status]: {
-				description: 'ZodTypeAny',
-				content: {
-					'application/json': {
-						schema: returnType,
+				];
+				// biome-ignore lint/style/noUselessElse: <explanation>
+			} else {
+				return [
+					statusCode,
+					{
+						description: description || 'json',
+						content: {
+							'application/json': {
+								schema: returnType,
+							},
+						},
 					},
-				},
-			},
-		};
-	}
+				];
+			}
+		}),
+		_.fromPairs,
+	)(responseMetaList) as ZodOpenApiPathsObject;
 }
