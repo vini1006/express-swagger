@@ -23,6 +23,7 @@ export const registerRouter = (config: {
 		config.app,
 		config.controllers,
 		config.serverRegisterConfig.commonInvalidParamResponse,
+		config.serverRegisterConfig.mode,
 	);
 	registerSwaggerDoc(config.swaggerConfig, config.controllers);
 };

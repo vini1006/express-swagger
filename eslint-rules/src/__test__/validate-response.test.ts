@@ -1,6 +1,13 @@
+import * as BunTest from 'bun:test';
+
 import { RuleTester } from '@typescript-eslint/rule-tester';
 import type { RuleModule } from '@typescript-eslint/utils/ts-eslint';
 import { rule } from '../rules/validate-response';
+
+RuleTester.afterAll = BunTest.afterAll;
+RuleTester.it = BunTest.it;
+RuleTester.itOnly = BunTest.it.only;
+RuleTester.describe = BunTest.describe;
 
 const ruleTester = new RuleTester();
 

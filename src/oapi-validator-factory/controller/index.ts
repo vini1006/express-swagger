@@ -30,6 +30,7 @@ export const registerControllers = (
 	app: express.Express,
 	controllers: ControllerConstructor[],
 	InvalidParamHandler?: InvalidParamHandler,
+	mode: 'dev' | 'live' = 'dev',
 ) => {
 	for (const ControllerClass of controllers) {
 		const router = express.Router();
@@ -74,6 +75,7 @@ export const registerControllers = (
 					routeMeta.handlerName,
 					args,
 					res,
+					mode,
 				).catch((error) => {
 					console.error(error);
 					if (!res.headersSent) {
@@ -98,6 +100,7 @@ const handleControllerHandler = async (
 	handlerName: string,
 	args: unknown[],
 	response: Response,
+	mode: 'dev' | 'live' = 'dev',
 ) => {
 	// @ts-ignore
 	const handler = instance[handlerName].bind(instance) as (
@@ -127,27 +130,36 @@ const handleControllerHandler = async (
 	const { returnType, statusCode } = responseMeta;
 
 	if (returnType === ViewRenderer) {
-		if (!(result.res instanceof ViewRenderer)) {
-			throw new Error('Response type mismatch. Expected ViewRenderer');
+		validateViewRendererResponse(result.res);
+		response.status(statusCode);
+		return ViewRenderer.render(response, result.res as ViewRenderer);
+	}
+
+	const parsedResult = parseResponse(returnType as ZodTypeAny, result.res);
+	response.status(statusCode).json(parsedResult);
+
+	function validateViewRendererResponse(res: unknown) {
+		if (mode === 'dev') {
+			if (!(res instanceof ViewRenderer)) {
+				throw new Error('Response type mismatch. Expected ViewRenderer');
+			}
+		}
+	}
+
+	function parseResponse(returnType: ZodTypeAny, res: unknown) {
+		const parsedResult = returnType.safeParse(res);
+
+		if (mode === 'dev') {
+			if (parsedResult?.error) {
+				throw new Error('Response type mismatch. Expected ZodType');
+			}
 		}
 
-		response.status(statusCode);
-		return ViewRenderer.render(response, result.res);
+		return parsedResult.data;
 	}
-
-	const parsedResult = (returnType as ZodTypeAny).safeParse(result);
-	if (parsedResult.error) {
-		response.status(500).json({
-			error: 'Internal Server Error, Response type validation failed',
-			message: parsedResult.error.message,
-		});
-		return;
-	}
-
-	response.status(statusCode).json(parsedResult.data);
 };
 
-const createControllerParameters = (
+export const createControllerParameters = (
 	req: Request,
 	instance: Controller,
 	handlerName: string,
@@ -175,7 +187,7 @@ const createControllerParameters = (
 				);
 				break;
 			case 'body':
-				args[index] = validateAndCastToType(req.body, validator);
+				args[index] = validateAndCastToType(req.body[key!], validator);
 				break;
 		}
 	}
